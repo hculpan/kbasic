@@ -1,6 +1,6 @@
 1 rem software by linville, tanstaafl & co.
 2 rem program by scott l. richmond
-3 rem oc to ber 17, 1980 copyright (c) cload 1981
+3 rem october 17, 1980 copyright (c) cload 1981
 4 gosub 4000:print "how many players (2/6)? ";:a1$="#,###,###":a2$="$#,#######.##":a3$="$,####.##":a4$="$###,#######.##":a5$="#$###":a9$(0)="not ":a9$(1)=""
 5 getkey d$:if d$="" then 5: else if d$<"2" or d$>"6" then 5: else print d$:h=val(d$)-1:dim a$(h+1),b$(11),c$(11),d$(7),e(h,6),f(11,h+9),h(11,1),j(h+1):f or  i=8 to 11:read b$(i):f(i,h+1)=1000:f(i,h+6)=9000:f(i,h+7)=h+1:f(i,h+8)=int(rnd(0)*24):f(i,h+9)=375000:h(i,0)=375:h(i,1)=350+int(rnd(0)*100)+1
 6 next:f or  i=0 to 7:read b$(i):f(i,h+1)=2500:f(i,h+6)=97500:f(i,h+7)=h+1:f(i,h+8)=int(rnd(0)*24):next:print :f or  i=0 to h:print "name of player #";i+1;:inputa$(i):e(i,0)=1000:e(i,1)=25000:e(i,2)=500:next:a$(h+1)="j.q. smith":h(8,0)=1000:h(8,1)=950+int(rnd(0)*200)+1:f or  i=0 to 7

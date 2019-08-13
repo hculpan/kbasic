@@ -1,5 +1,8 @@
 # Compiled class file
 *.class
+*.app
+
+CMakeFiles
 
 # Intellij files
 .idea
