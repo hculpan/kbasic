@@ -5,6 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/local/Cellar/gcc/9.1.0/include/c++/9.1.0/x86_64-apple-darwin18",
+                "/usr/local/Cellar/gcc/9.1.0/include/c++/9.1.0",
                 "/Library/Frameworks/SDL2_ttf.framework/Headers"
             ],
             "defines": [],

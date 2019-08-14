@@ -48,10 +48,10 @@ RM = /opt/local/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/harryculpan/src/trsbasic
+CMAKE_SOURCE_DIR = /Users/harryculpan/src/kbasic
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/harryculpan/src/trsbasic
+CMAKE_BINARY_DIR = /Users/harryculpan/src/kbasic
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -80,9 +80,9 @@ edit_cache/fast: edit_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/harryculpan/src/trsbasic/CMakeFiles /Users/harryculpan/src/trsbasic/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/harryculpan/src/kbasic/CMakeFiles /Users/harryculpan/src/kbasic/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/harryculpan/src/trsbasic/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/harryculpan/src/kbasic/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -149,6 +149,33 @@ src/FontManager.s: src/FontManager.cpp.s
 src/FontManager.cpp.s:
 	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/FontManager.cpp.s
 .PHONY : src/FontManager.cpp.s
+
+src/Lexer.o: src/Lexer.cpp.o
+
+.PHONY : src/Lexer.o
+
+# target to build an object file
+src/Lexer.cpp.o:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Lexer.cpp.o
+.PHONY : src/Lexer.cpp.o
+
+src/Lexer.i: src/Lexer.cpp.i
+
+.PHONY : src/Lexer.i
+
+# target to preprocess a source file
+src/Lexer.cpp.i:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Lexer.cpp.i
+.PHONY : src/Lexer.cpp.i
+
+src/Lexer.s: src/Lexer.cpp.s
+
+.PHONY : src/Lexer.s
+
+# target to generate assembly for a file
+src/Lexer.cpp.s:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Lexer.cpp.s
+.PHONY : src/Lexer.cpp.s
 
 src/MainWindow.o: src/MainWindow.cpp.o
 
@@ -270,6 +297,9 @@ help:
 	@echo "... src/FontManager.o"
 	@echo "... src/FontManager.i"
 	@echo "... src/FontManager.s"
+	@echo "... src/Lexer.o"
+	@echo "... src/Lexer.i"
+	@echo "... src/Lexer.s"
 	@echo "... src/MainWindow.o"
 	@echo "... src/MainWindow.i"
 	@echo "... src/MainWindow.s"

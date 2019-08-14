@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.12)
 project(kbasic)
 
 set(SOURCE
+    src/Lexer.cpp
     src/System.cpp
     src/FontManager.cpp
     src/Window.cpp
@@ -57,6 +58,8 @@ if (APPLE)
         MACOSX_BUNDLE TRUE
         RESOURCE "${RESOURCE_FILES}")
 endif()
+
+set_property(TARGET kbasic PROPERTY CXX_STANDARD 17)
 
 target_include_directories (
     kbasic

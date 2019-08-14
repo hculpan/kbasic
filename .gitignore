@@ -3,6 +3,8 @@
 *.app
 
 CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
 
 # Intellij files
 .idea

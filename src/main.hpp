@@ -4,6 +4,10 @@
 #include "MainWindow.hpp"
 #include "FontManager.hpp"
 
+#include <string>
+
+using namespace std;
+
 #define UNUSED(a)   (void)a;
 
 extern double dpiModifier;
@@ -15,7 +19,5 @@ extern string resourcePath;
 
 const int SCREEN_WIDTH = 1240;
 const int SCREEN_HEIGHT = 940;
-
-using namespace std;
 
 #endif

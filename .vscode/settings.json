@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "map": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "string": "cpp",
+        "functional": "cpp",
+        "filesystem": "cpp"
     }
 }

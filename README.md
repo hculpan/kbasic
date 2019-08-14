@@ -1,2 +1,3 @@
-# trsbasic
-An intepreter for a TRS-80 basic, primarily intended to run a game, Wall Street &amp; Corporate Control
+# kbasic
+An old-school intepreter, largely compliant with TRS-80 basic.  It was written for fun,
+but also to run a specific game, Wall Street &amp; Corporate Control
