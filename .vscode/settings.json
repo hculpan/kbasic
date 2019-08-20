@@ -4,6 +4,8 @@
         "iostream": "cpp",
         "string": "cpp",
         "functional": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "__config": "cpp",
+        "__nullptr": "cpp"
     }
 }

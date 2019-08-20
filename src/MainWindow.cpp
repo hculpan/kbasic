@@ -20,8 +20,6 @@
 #define MAP_START_X 405
 #define MAP_START_Y 110
 
-using namespace std;
-
 bool MainWindow::handleEvent(SDL_Event *e) {
     std::list<Window *>::iterator i;
     bool eventHandled = false;
@@ -34,14 +32,14 @@ bool MainWindow::handleEvent(SDL_Event *e) {
     
     if (!eventHandled) {
         if (e->type == SDL_QUIT){
-            quitting = true;
+            loopResult = l_quitting;
             eventHandled = true;
-            cleanup();
-        } else if (e->type == SDL_WINDOWEVENT) {
-        } else if (e->type == SDL_MOUSEBUTTONDOWN) {
-//            addText(to_string(consoleText.size()));
+        } else if (e->type == SDL_KEYDOWN && e->key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+            loopResult = l_escape;
+            eventHandled = true;
         } else if (e->type == SDL_KEYDOWN) {
             addCharacter(translateKey(e->key.keysym));
+            eventHandled = true;
         }
     }
     
@@ -119,6 +117,11 @@ void MainWindow::mapKeys() {
     keyMap[SDL_SCANCODE_BACKSLASH] = "|";
 }
 
+bool MainWindow::loop() 
+{
+    return mainLoop();
+}
+
 void MainWindow::cleanup() {
     std::list<Window *>::iterator i;
     for(i = children.begin(); i != children.end(); ++i) {
@@ -176,6 +179,12 @@ void MainWindow::freeTextures() {
 }
 
 void MainWindow::renderOutput() {
+    if (consoleTextDirty)
+    {
+        createTextures();
+        consoleTextDirty = false;
+    }
+
     for (int i = 0; i < 25; i++) {
         if (textures[i]) {
             renderTexture(textures[i], getRenderer(), 5, i * textHeight + 5);
@@ -183,9 +192,16 @@ void MainWindow::renderOutput() {
     }
 };
 
-void MainWindow::addText(string s) {
-    consoleText.push_back(s);
-    createTextures();
+void MainWindow::addText(string s, bool append) {
+    string t = s;
+    if (appendNext)
+    {
+        t = consoleText.back() + s;
+        consoleText.pop_back();
+    }
+    appendNext = append;
+    consoleText.push_back(t);
+    consoleTextDirty = true;
 }
 
 void MainWindow::addCharacter(string c) {
@@ -221,7 +237,7 @@ void MainWindow::addCharacter(string c) {
         }
         addText(s + "_");
     } else {
-        cout << "Unhandled key: " << c << endl;
+//        cout << "Unhandled key: " << c << endl;
     }
 }
 

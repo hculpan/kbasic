@@ -204,6 +204,33 @@ src/MainWindow.cpp.s:
 	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/MainWindow.cpp.s
 .PHONY : src/MainWindow.cpp.s
 
+src/Parser.o: src/Parser.cpp.o
+
+.PHONY : src/Parser.o
+
+# target to build an object file
+src/Parser.cpp.o:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Parser.cpp.o
+.PHONY : src/Parser.cpp.o
+
+src/Parser.i: src/Parser.cpp.i
+
+.PHONY : src/Parser.i
+
+# target to preprocess a source file
+src/Parser.cpp.i:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Parser.cpp.i
+.PHONY : src/Parser.cpp.i
+
+src/Parser.s: src/Parser.cpp.s
+
+.PHONY : src/Parser.s
+
+# target to generate assembly for a file
+src/Parser.cpp.s:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Parser.cpp.s
+.PHONY : src/Parser.cpp.s
+
 src/System.o: src/System.cpp.o
 
 .PHONY : src/System.o
@@ -230,6 +257,33 @@ src/System.s: src/System.cpp.s
 src/System.cpp.s:
 	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/System.cpp.s
 .PHONY : src/System.cpp.s
+
+src/Value.o: src/Value.cpp.o
+
+.PHONY : src/Value.o
+
+# target to build an object file
+src/Value.cpp.o:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Value.cpp.o
+.PHONY : src/Value.cpp.o
+
+src/Value.i: src/Value.cpp.i
+
+.PHONY : src/Value.i
+
+# target to preprocess a source file
+src/Value.cpp.i:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Value.cpp.i
+.PHONY : src/Value.cpp.i
+
+src/Value.s: src/Value.cpp.s
+
+.PHONY : src/Value.s
+
+# target to generate assembly for a file
+src/Value.cpp.s:
+	$(MAKE) -f CMakeFiles/kbasic.dir/build.make CMakeFiles/kbasic.dir/src/Value.cpp.s
+.PHONY : src/Value.cpp.s
 
 src/Window.o: src/Window.cpp.o
 
@@ -303,9 +357,15 @@ help:
 	@echo "... src/MainWindow.o"
 	@echo "... src/MainWindow.i"
 	@echo "... src/MainWindow.s"
+	@echo "... src/Parser.o"
+	@echo "... src/Parser.i"
+	@echo "... src/Parser.s"
 	@echo "... src/System.o"
 	@echo "... src/System.i"
 	@echo "... src/System.s"
+	@echo "... src/Value.o"
+	@echo "... src/Value.i"
+	@echo "... src/Value.s"
 	@echo "... src/Window.o"
 	@echo "... src/Window.i"
 	@echo "... src/Window.s"

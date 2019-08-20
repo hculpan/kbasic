@@ -17,7 +17,7 @@
 
 double dpiModifier = 1.0;
 
-bool quitting = false;
+LoopStatus loopResult = l_running;
 
 string resourcePath = "";
 
@@ -26,6 +26,21 @@ MainWindow *mainWindow;
 void logSDLError(const std::string &msg);
 bool initGraphics();
 string findResourcePath();
+
+LoopStatus mainLoop()
+{
+    SDL_Event e;
+    while (SDL_PollEvent(&e)){
+        mainWindow->handleEvent(&e);
+        if (loopResult == l_quitting) {
+            break;
+        }
+    }
+    
+    mainWindow->render(false);
+
+    return loopResult;
+}
 
 int main(int argc, const char * argv[]) {
     UNUSED(argc)
@@ -40,16 +55,9 @@ int main(int argc, const char * argv[]) {
     fontManager->initialize();
     mainWindow = new MainWindow();
 
-    SDL_Event e;
+    bool quitting = false;
     while (!quitting){
-        while (SDL_PollEvent(&e)){
-            mainWindow->handleEvent(&e);
-            if (quitting) {
-                break;
-            }
-        }
-        
-        mainWindow->render(false);
+        quitting = (mainLoop() == l_quitting);
     }
 
     mainWindow->cleanup();

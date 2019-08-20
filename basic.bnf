@@ -81,6 +81,7 @@ Real           = {digit}+.{digit}+
 <LineRange>  ::= Integer '-' Integer
                 | '-' Integer
                 | Integer '-'
+                | Integer
                 | Empty
 
 <Lines>       ::= Integer <Statements> NewLine <Lines> 
@@ -91,6 +92,7 @@ Real           = {digit}+.{digit}+
                 | <Statement>
 
 <Statement>   ::= CLOSE '#' Integer
+                | CLEAR
                 | DATA <Constant List> 
                 | DIM ID '(' <Integer List> ')'
                 | END          
@@ -110,11 +112,11 @@ Real           = {digit}+.{digit}+
                 | READ <ID List>           
                 | RETURN
                 | RESTORE
-                | RUN
                 | SCNCLR
                 | STOP
                 | SYS <Value>
                 | WAIT <Value List>
+                | ID '=' <Expression>
                 | Remark
 
 <Access>   ::= INPUT

@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.12)
 project(kbasic)
 
 set(SOURCE
+    src/Value.cpp
     src/Lexer.cpp
+    src/Parser.cpp
     src/System.cpp
     src/FontManager.cpp
     src/Window.cpp

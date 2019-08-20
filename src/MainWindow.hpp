@@ -10,7 +10,7 @@
 #define MainWindow_hpp
 
 #include "Window.hpp"
-#include "ConsoleOutput.hpp"
+#include "Console.hpp"
 
 #include <vector>
 #include <array>
@@ -18,7 +18,7 @@
 
 using namespace std;
 
-class MainWindow : public Window, ConsoleOutput {
+class MainWindow : public Window, Console {
 private:
     SDL_Window *window;
 
@@ -26,8 +26,12 @@ private:
     int textHeight = 0;
 
     bool capsLock = false;
+    bool appendNext = false;
+
 
     void renderOutput();
+
+    bool consoleTextDirty = false;
 
     vector<string> consoleText;
     array<SDL_Texture *, 25> textures;
@@ -46,10 +50,12 @@ public:
     virtual void cleanup();
     virtual bool handleEvent(SDL_Event *e);
 
+    bool loop();
+
     void addCharacter(string c);
 
     // ConsoleOutput interface
-    void addText(string s);
+    void addText(string s, bool append = false);
     void clearText();
     void terminate();
 };
