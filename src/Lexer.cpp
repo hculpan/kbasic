@@ -1,6 +1,9 @@
 #include "Lexer.hpp"
 
 #include <cctype>
+#include <algorithm>
+
+vector<string> functions{"tab", "int", "rnd", "str$"};
 
 Lexer::Lexer(string line) 
 {
@@ -11,7 +14,7 @@ struct LexToken *Lexer::newToken(string curr, TokenType currType, string text, T
 {
     if (curr != "")
     {
-        m_currentPos--;
+        m_currentPos -= text.size();
         return new LexToken(curr, currType);
     } else 
     {
@@ -68,9 +71,17 @@ struct LexToken *Lexer::keywords(struct LexToken *token)
         else if (ltext == "return") token->type = t_return;
         else if (ltext == "if") token->type = t_if;
         else if (ltext == "then") token->type = t_then;
+        else if (ltext == "input") token->type = t_input;
+        else if (isFunction(ltext)) token->type = t_function;
     } 
 
     return token;
+}
+
+bool Lexer::isFunction(string ltext)
+{
+    vector<string>::iterator it = find(functions.begin(), functions.end(), ltext);
+    return (it != functions.end());
 }
 
 void Lexer::skipToEnd()
@@ -221,6 +232,10 @@ struct LexToken *Lexer::nextToken()
         } else if (c == ')') 
         {
             token = newToken(curr, currType, ")", TokenType::t_rightparen);
+            break;
+        } else if (c == ',')
+        {
+            token = newToken(curr, currType, ",", TokenType::t_comma);
             break;
         } else if (c == '.') 
         {

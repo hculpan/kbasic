@@ -8,6 +8,7 @@
 
 //Using SDL and standard IO
 #include <iostream>
+#include <sstream>
 
 #include <CoreFoundation/CFBundle.h>
 #include <SDL2/SDL.h>
@@ -82,6 +83,28 @@ bool initGraphics() {
     }
     
     return true;
+}
+
+bool isFloat( string myString ) {
+    std::istringstream iss(myString);
+    float f;
+    iss >> noskipws >> f; // noskipws considers leading whitespace invalid
+    // Check the entire string was consumed and if either failbit or badbit is set
+    return iss.eof() && !iss.fail(); 
+}
+
+bool isInteger(string s)
+{
+    bool result = true;
+    for (char const &c : s)
+    {
+        if (!isdigit(c))
+        {
+            result = false;
+            break;
+        }
+    }
+    return result;
 }
 
 string findResourcePath() {

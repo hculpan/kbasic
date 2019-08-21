@@ -11,6 +11,8 @@ public:
     virtual void clearText() = 0;
     virtual void terminate() = 0;
     virtual bool loop() = 0;
+    virtual float inputNumber(string prompt) = 0;
+    virtual string inputString(string prompt) = 0;
 };
 
 #endif

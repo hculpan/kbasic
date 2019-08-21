@@ -92,6 +92,8 @@ Node *Parser::statements(LexToken *token)
         currNode = currNode->right;
     }
 
+    swallowNext(t_eol);
+
     return result;
 }
 
@@ -125,6 +127,7 @@ Node *Parser::statement(LexToken *token)
     else if (token->type == t_scnclr) result->left = scnclr(token);
     else if (token->type == t_end) result->left = end(token);
     else if (token->type == t_if) result->left = if_(token);
+    else if (token->type == t_input) result->left = input(token);
     else if (token->type == t_for)
     {
         result->left = for_(token);
@@ -156,6 +159,33 @@ Node *Parser::end(LexToken *token)
 Node *Parser::clear(LexToken *token) 
 {
     return new Node(nt_clear, token->text);
+}
+
+Node *Parser::input(LexToken *token)
+{
+    Node *result = new Node(nt_input, token->text);
+    LexToken *t = m_lexer->next();
+    if (!t)
+    {
+        m_errors.push_back(ParseError("Expecting string or ID for INPUT"));
+        return result;
+    } else if (t->type == t_string)
+    {
+        result->right = constant(t);
+        free(t);
+        swallowNext(t_semicolon);
+        t = m_lexer->next();
+    }
+
+    if (!t || t->type != t_identifier)
+    {
+        m_errors.push_back(ParseError("Expecting ID for INPUT"));
+        return result;
+    }
+
+    result->left = new Node(nt_identifier, t->text);
+
+    return result;
 }
 
 Node *Parser::next(LexToken *token)
@@ -266,8 +296,18 @@ Node *Parser::then(LexToken *token)
 
     Node *result = nullptr;
     LexToken *t = m_lexer->next();
-    result = statement(t);
-    free(t);
+    if (t->type == t_integer)
+    {
+        m_lexer->pushBack(t);
+        LexToken *tgoto = new LexToken("goto", t_goto);
+        result = new Node(nt_statement, "statement");
+        result->left = goto_(tgoto);
+        free(tgoto);
+    } else 
+    {
+        result = statement(t);
+        free(t);
+    }
     return result;
 }
 
@@ -439,6 +479,9 @@ Node *Parser::valueExpr(LexToken *token)
     } else if (token->type == t_identifier)
     {
         result = new Node(nt_identifier, token->text);
+    } else if (token->type == t_function)
+    {
+        result = funcExpr(token);
     } else if (token->type == t_integer ||
                token->type == t_real ||
                token->type == t_string)
@@ -509,6 +552,17 @@ Node *Parser::compareExpr(LexToken *token)
         if (t) m_lexer->pushBack(t);
     }
 
+    return result;
+}
+
+Node *Parser::funcExpr(LexToken *token)
+{
+    Node *result = new Node(nt_function, token->text);
+    swallowNext(t_leftparen);
+    LexToken *t = m_lexer->next();
+    result->left = expression(t);
+    free(t);
+    swallowNext(t_rightparen);
     return result;
 }
 

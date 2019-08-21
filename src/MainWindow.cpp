@@ -16,6 +16,7 @@
 
 #include <sstream>
 #include <iterator>
+#include <algorithm>
 
 #define MAP_START_X 405
 #define MAP_START_Y 110
@@ -214,6 +215,7 @@ void MainWindow::addCharacter(string c) {
             s = s.substr(0, s.size() - 1);
         }
         addText(s + c + '_');
+        if (loopResult == l_input) inputBuffer += c;
     } else if (c == "return" || c == "Return") {
         string s = consoleText.back();
         consoleText.pop_back();
@@ -223,10 +225,17 @@ void MainWindow::addCharacter(string c) {
             s = "";
         }
         addText(s);
-        core->command(s, this);
-        addText("_");
+        if (loopResult == l_input)
+        {
+            loopResult = l_endInput;
+        } else 
+        {
+            core->command(s, this);
+            addText("_");
+        }
     } else if (c == "capslock" || c == "CapsLock") {
         capsLock = !capsLock;
+        if (loopResult == l_input) loopResult = l_endInput;
     } else if (c == "backspace" || c == "Backspace") {
         string s = consoleText.back();
         consoleText.pop_back();
@@ -236,6 +245,7 @@ void MainWindow::addCharacter(string c) {
             s = "";
         }
         addText(s + "_");
+        if (loopResult == l_input && inputBuffer.size() > 0) inputBuffer = inputBuffer.substr(0, inputBuffer.size() - 1);
     } else {
 //        cout << "Unhandled key: " << c << endl;
     }
@@ -282,4 +292,64 @@ void MainWindow::terminate() {
     SDL_Event sdlevent;
     sdlevent.type = SDL_QUIT;
     SDL_PushEvent(&sdlevent);
+}
+
+float MainWindow::inputNumber(string prompt)
+{
+    float result = 0.0;
+    addText(prompt + "? ");    
+
+    loopResult = l_input;
+    inputBuffer = "";
+
+    bool quitting = false;
+    while (!quitting){
+        quitting = (mainLoop() == l_quitting);
+        if (loopResult == l_escape)
+        {
+            addText("Break");
+            inputBuffer = "";
+            break;
+        } else if (loopResult == l_endInput && isFloat(inputBuffer)) 
+        {
+            result = stof(inputBuffer);
+            break;
+        } else if (loopResult == l_endInput && inputBuffer == "")
+        {
+            break;
+        } else if (loopResult == l_endInput) 
+        {
+            addText("Type mismatch");
+            addText(prompt + "? ");
+            inputBuffer = "";
+            loopResult = l_input;
+        }
+    }
+
+    if (loopResult == l_escape) loopResult = l_end;
+    else loopResult = l_running;
+    return result;
+}
+
+string MainWindow::inputString(string prompt)
+{
+    addText(prompt + "?");    
+
+    loopResult = l_input;
+    inputBuffer = "";
+
+    bool quitting = false;
+    while (!quitting){
+        quitting = (mainLoop() == l_quitting);
+        if (loopResult == l_endInput) break;
+        else if (loopResult == l_escape) 
+        {
+            addText("Break");
+            break;
+        }
+    }
+
+    if (loopResult == l_escape) loopResult = l_end;
+    else loopResult = l_running;
+    return inputBuffer;
 }

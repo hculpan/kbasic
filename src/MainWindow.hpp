@@ -28,6 +28,7 @@ private:
     bool capsLock = false;
     bool appendNext = false;
 
+    string inputBuffer;
 
     void renderOutput();
 
@@ -50,14 +51,15 @@ public:
     virtual void cleanup();
     virtual bool handleEvent(SDL_Event *e);
 
-    bool loop();
-
     void addCharacter(string c);
 
     // ConsoleOutput interface
     void addText(string s, bool append = false);
     void clearText();
     void terminate();
+    bool loop();
+    float inputNumber(string prompt);
+    string inputString(string prompt);
 };
 
 #endif /* MainWindow_hpp */

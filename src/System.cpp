@@ -9,13 +9,14 @@
 #include <cmath>
 #include <algorithm>
 #include <ctime>
+#include <cstdlib>
 
 #include <dirent.h>
 
 System *core = new System();
 
 System::System() {
-
+    srand(time(NULL));
 }
 
 bool System::checkNext(Lexer *l, TokenType type)
@@ -171,6 +172,7 @@ bool System::statement(Node *node)
     else if (node->left->type == nt_if) if_(node->left);
     else if (node->left->type == nt_for) for_(node->left);
     else if (node->left->type == nt_next) next(node->left);
+    else if (node->left->type == nt_input) input(node->left);
     else if (node->left->type == nt_goto) 
     {
         goto_(node->left);
@@ -218,6 +220,16 @@ void System::assign(Node *node)
     }
     setVariable(id, v);
     inAssign = false;
+}
+
+void System::input(Node *node) 
+{
+    string var = node->left->text;
+    string prompt = (node->right ? node->right->text : "");
+    Value result;
+    if (var.back() == '$') result = Value(m_output->inputString(prompt));
+    else result = Value(m_output->inputNumber(prompt));
+    setVariable(var, result);
 }
 
 void System::goto_(Node *node) 
@@ -366,6 +378,7 @@ Value System::boolExpression(Node *node)
     } else if (node->type == nt_equal) return add(node->left).equals(add(node->right));
     else if (node->type == nt_greater) return add(node->left).isGreaterThan(add(node->right));
     else if (node->type == nt_less) return add(node->left).isLessThan(add(node->right));
+    else if (node->type == nt_notequal) return !add(node->left).equals(add(node->right));
     else if (node->type == nt_greaterequal) 
     {
         Value v1 = add(node->left);
@@ -392,6 +405,7 @@ Value System::add(Node *node)
     if (node->type == nt_real) return Value(stof(node->text));
     if (node->type == nt_string) return Value(node->text);
     if (node->type == nt_identifier) return getVariable(node->text);
+    if (node->type == nt_function) return function(node);
 
     if (node->type == nt_add)
     {
@@ -446,7 +460,7 @@ Value System::add(Node *node)
         if (v1.type() == vt_real && v2.type() == vt_real) return Value(pow(v1.real(), v2.real()));    
         if (v1.type() == vt_real && v2.type() == vt_integer) return Value(pow(v1.real(), v2.integer()));    
     }
-    m_output->addText("Incompatible types"); 
+    m_errors.push_back("Type mismatch");
     return Value();
 }
 
@@ -476,8 +490,76 @@ Value System::expression(Node *node)
     if (node->type == nt_string) return Value(node->text);
     else if (node->type == nt_integer) return Value(stoi(node->text));
     else if (node->type == nt_real) return Value(stof(node->text));
+    else if (node->type == nt_function) return function(node);
     else if (isBoolNode(node->type)) return boolExpression(node);
     else return add(node);
+}
+
+Value System::tab(const Value &v)
+{
+    if (!v.isInteger())
+    {
+        m_errors.push_back("Type mismatch in call to TAB()");
+        return Value();
+    }
+    return string(v.integer(), ' ');
+}
+
+Value System::intFunc(const Value &v)
+{
+    if (v.isString() && isFloat(v.string()))
+    {
+        return Value(int(stof(v.string())));
+    }
+    if (!v.isNumeric())
+    {
+        m_errors.push_back("Type mismatch in call to INT()");
+        return Value();
+    }
+    return Value(int(v.real()));
+}
+
+Value System::strFunc(const Value &v)
+{
+    if (!v.isNumeric() && !v.isString())
+    {
+        m_errors.push_back("Type mismatch in call to STR$()");
+        return Value();
+    }
+    return Value(v.string());
+}
+
+Value System::rnd(const Value &v)
+{
+    if (!v.isInteger())
+    {
+        m_errors.push_back("Type mismatch in call to RND()");
+        return Value();
+    }
+
+    if (v.integer() == 0)
+    {
+        return Value(float(rand())/float(RAND_MAX));
+    } else
+    {
+        int n = rand();
+        int m = (v.integer() == 0.0 ? 1 : v.integer());
+        Value result = Value((n % m) + 1);
+        return result;
+    }
+}
+
+Value System::function(Node *node)
+{
+    const Value param = expression(node->left);
+    string ltext = node->text;
+    transform(ltext.begin(), ltext.end(), ltext.begin(), [](unsigned char c){ return tolower(c); });
+
+    if (ltext == "tab") return tab(param);
+    if (ltext == "int") return intFunc(param);
+    if (ltext == "rnd") return rnd(param);
+    if (ltext == "str$") return strFunc(param);
+    else return Value();
 }
 
 bool is_number(const std::string& s)

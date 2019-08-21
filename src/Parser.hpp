@@ -13,7 +13,8 @@ enum NodeType {
     nt_greaterequal, nt_less, nt_lessequal, nt_minus, nt_add, nt_mult, nt_div, 
     nt_negate, nt_leftparen, nt_rightparen, nt_power, nt_identifier, nt_remark,
     nt_assign, nt_clear, nt_end, nt_semicolon, nt_printlist, nt_gosub, nt_lineNumber,
-    nt_return, nt_if, nt_then, nt_trun, nt_for, nt_next, nt_step, nt_to
+    nt_return, nt_if, nt_then, nt_trun, nt_for, nt_next, nt_step, nt_to, nt_function,
+    nt_input
 };
 
 struct Node {
@@ -100,6 +101,7 @@ class Parser {
         Node *goto_(LexToken *token);
         Node *andExpr(LexToken *token);
         Node *notExpr(LexToken *token);
+        Node *funcExpr(LexToken *token);
         Node *compareExpr(LexToken *token);
         Node *addExpr(LexToken *token);
         Node *multExpr(LexToken *token);
@@ -117,6 +119,7 @@ class Parser {
         Node *then(LexToken *token);
         Node *for_(LexToken *token);
         Node *next(LexToken *token);
+        Node *input(LexToken *token);
 };
 
 #endif

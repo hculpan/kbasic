@@ -102,6 +102,7 @@ Real           = {digit}+.{digit}+
                 | GOSUB <Expression> 
                 | IF <Expression> THEN <Statement>         
                 | INPUT <ID List>       
+                | INPUT <string>;<ID List>
                 | INPUT '#' Integer ',' <ID List>       
                 | LET Id '=' <Expression> 
                 | NEXT <ID List>               
@@ -174,9 +175,15 @@ Real           = {digit}+.{digit}+
                 | <Value> 
 
 <Value>       ::= '(' <Expression> ')'
+                | <Func Exp>
                 | ID 
                 | ID '(' <Expression List> ')'
-                | <Constant> 
+
+<Func Exp>    ::= TAB'(' <Expression> ')'
+                | CHR$'(' <Expression> ')'
+                | INT'(' <Expression> ')'
+                | RND'(' <Expression> ')'
+                | <Constant>
 
 <Constant> ::= Integer 
              | String 

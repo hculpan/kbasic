@@ -124,11 +124,19 @@ private:
     void if_(Node *node);
     void for_(Node *node);
     void next(Node *node);
+    void input(Node *node);
 
     void branchTo(int lineNum, Node *node);
 
     Value expression(Node *node);
     Value boolExpression(Node *node);
+
+    // Function definitions
+    Value function(Node *node);
+    Value tab(const Value &v);
+    Value intFunc(const Value &v);
+    Value strFunc(const Value &v);
+    Value rnd(const Value &v);
 
     void lines();
     

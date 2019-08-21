@@ -1,5 +1,5 @@
-1 clear:cls
-5 testv=100000
-10 a=0
-20 print a:a=a+1:if a>= testv then goto 99:goto 20
-99 print "Done":end
+10 a=10
+20 if a=10 then 100
+30 print "I guess a isn't 10"
+99 end
+100 print "Yes, a=10"
