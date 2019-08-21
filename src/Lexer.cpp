@@ -179,7 +179,7 @@ struct LexToken *Lexer::nextToken()
             break;
         } else if (c == '-') 
         {
-            token = newToken(curr, currType, "-", TokenType::t_minus);
+            token = newToken(curr, currType, "-", TokenType::t_dash);
             break;
         } else if (c == ':') 
         {

@@ -59,6 +59,8 @@ struct ParseError {
 
 class Parser {
     public:
+        typedef Node *(Parser::*ParserFunc)(LexToken *t);
+
         Parser() {} ;
         Parser(Lexer *l);
         Parser(string line);
@@ -75,7 +77,11 @@ class Parser {
         bool ownLexer = false;
         vector<ParseError> m_errors;
 
-        bool swallowNext(TokenType type, bool suppressError = false);
+        bool swallowNext(TokenType type);
+        bool matchNext(TokenType type1, TokenType type2 = t_unknown, TokenType type3 = t_unknown);
+
+        Node *callWithNext(ParserFunc f);
+        Node *newNode(Node *left, NodeType type, string text, Node *right);
 
         Node *command();
         Node *load(LexToken *token);

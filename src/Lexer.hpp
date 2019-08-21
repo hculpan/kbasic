@@ -5,7 +5,7 @@
 
 enum TokenType {
     t_unknown, t_identifier, t_string, t_integer, t_real, t_keyword, t_period, t_colon,
-    t_plus, t_minus, t_mult, t_div, t_leftparen, t_rightparen, t_equals, t_eol, t_caret,
+    t_plus, t_dash, t_mult, t_div, t_leftparen, t_rightparen, t_equals, t_eol, t_caret,
     t_save, t_load, t_run, t_list, t_scnclr, t_bye, t_files, t_new, t_stat, t_and, t_or,
     t_notequals, t_greater, t_less, t_greaterequal, t_lessequal, t_step, t_comma,
     t_data, t_for, t_to, t_next, t_read, t_let, t_print, t_rem, t_goto, t_not,

@@ -15,14 +15,13 @@
 #include <SDL_ttf.h>
 
 #include "main.hpp"
+#include "MainWindow.hpp"
 
 double dpiModifier = 1.0;
 
 LoopStatus loopResult = l_running;
 
 string resourcePath = "";
-
-MainWindow *mainWindow;
 
 void logSDLError(const std::string &msg);
 bool initGraphics();
@@ -54,7 +53,7 @@ int main(int argc, const char * argv[]) {
     };
     
     fontManager->initialize();
-    mainWindow = new MainWindow();
+    mainWindow = new MainWindow(SCREEN_WIDTH, SCREEN_HEIGHT, 24);
 
     bool quitting = false;
     while (!quitting){

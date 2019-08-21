@@ -11,16 +11,40 @@
 
 #include "Window.hpp"
 #include "Console.hpp"
+#include "main.hpp"
 
 #include <vector>
 #include <array>
 #include <unordered_map>
 
-using namespace std;
-
 class MainWindow : public Window, Console {
+public:
+    MainWindow(int lineSize, int lineCount, int fontSize);
+    
+    virtual void render(bool forceRedraw);
+    virtual void cleanup();
+    virtual bool handleEvent(SDL_Event *e);
+
+    void addCharacter(string c);
+
+    int fontSize() { return m_fontSize; }
+
+    // ConsoleOutput interface
+    void addText(string s, bool append = false);
+    void addTextAt(int location, string s);
+    void clearText();
+    void terminate();
+    inline int lineSize() { return m_lineSize; };
+    bool loop();
+    float inputNumber(string prompt);
+    string inputString(string prompt);
+
 private:
     SDL_Window *window;
+
+    int m_fontSize;
+    int m_lineSize;
+    int m_lineCount;
 
     int textWidth = 0;
     int textHeight = 0;
@@ -35,7 +59,7 @@ private:
     bool consoleTextDirty = false;
 
     vector<string> consoleText;
-    array<SDL_Texture *, 25> textures;
+    array<SDL_Texture *, SCREEN_HEIGHT> textures;
     unordered_map<int, string> keyMap;
 
     void mapKeys();
@@ -44,22 +68,8 @@ private:
     void freeTextures();
     void createTextures();
 
-public:
-    MainWindow();
-    
-    virtual void render(bool forceRedraw);
-    virtual void cleanup();
-    virtual bool handleEvent(SDL_Event *e);
-
-    void addCharacter(string c);
-
-    // ConsoleOutput interface
-    void addText(string s, bool append = false);
-    void clearText();
-    void terminate();
-    bool loop();
-    float inputNumber(string prompt);
-    string inputString(string prompt);
 };
+
+extern MainWindow *mainWindow;
 
 #endif /* MainWindow_hpp */

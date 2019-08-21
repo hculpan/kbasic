@@ -38,16 +38,37 @@ Node *Parser::parseStatements(string line) {
     return result;
 }
 
-bool Parser::swallowNext(TokenType type, bool suppressError)
+bool Parser::matchNext(TokenType type1, TokenType type2, TokenType type3)
+{
+    LexToken *result = m_lexer->next();
+    if (!result) return result;
+
+    bool matches = false;
+    if (type1 != t_unknown && type1 == result->type) matches = true;
+    else if (type2 != t_unknown && type2 == result->type) matches = true;
+    else if (type3 != t_unknown && type3 == result->type) matches = true;
+
+    if (!matches)
+    {
+        m_lexer->pushBack(result);
+        result = nullptr;
+    } else {
+        free(result);
+    }
+
+    return matches;
+}
+
+bool Parser::swallowNext(TokenType type)
 {
     LexToken *t = m_lexer->next();
     if (t && t->type != type)
     {
         m_lexer->pushBack(t);
-        if (!suppressError) m_errors.push_back(ParseError("Unexpected token \"" + t->text + "\""));
+        m_errors.push_back(ParseError("Unexpected token \"" + t->text + "\""));
         return false;
     } else if (!t && type != t_eol) {
-        if (!suppressError) m_errors.push_back(ParseError("Unexpecting token; found EOL"));
+        m_errors.push_back(ParseError("Unexpecting token; found EOL"));
         return false;
     } else if (t && t->type == type)
     {
@@ -84,7 +105,7 @@ Node *Parser::statements(LexToken *token)
 {
     Node *result = statement(token);
     Node *currNode = result;
-    while (swallowNext(t_colon, true))
+    while (matchNext(t_colon))
     {
         LexToken *t = m_lexer->next();
         currNode->right = statement(t);
@@ -402,7 +423,7 @@ NodeType mapComparitor(TokenType type)
 Node *Parser::negateExpr(LexToken *token)
 {
     Node *result = nullptr;
-    if (token->type == t_minus)
+    if (token->type == t_dash)
     {
         result = new Node(nt_negate, token->text);
         LexToken *t = m_lexer->next();
@@ -415,6 +436,24 @@ Node *Parser::negateExpr(LexToken *token)
     return result;
 }
 
+Node *Parser::callWithNext(ParserFunc f)
+{
+    Node *result = nullptr;
+    LexToken *t = m_lexer->next();
+    if (!t) return nullptr;
+    result = (this->*f)(t);
+    free(t);
+    return result;
+}
+
+Node *Parser::newNode(Node *left, NodeType type, string text, Node *right)
+{
+    Node *result = new Node(type, text);
+    result->left = left;
+    result->right = right;
+    return result;
+}
+
 Node *Parser::multExpr(LexToken *token)
 {
     if (!token)
@@ -423,24 +462,17 @@ Node *Parser::multExpr(LexToken *token)
         return nullptr;
     }
 
-    Node *result = nullptr;
+    Node *result = negateExpr(token);
 
-    Node *result1 = negateExpr(token);
-
-    LexToken *t = m_lexer->next();
-    if (t && (t->type == t_mult || t->type == t_div))
+    LexToken *op = m_lexer->next();
+    while (op && (op->type == t_mult || op->type == t_div))
     {
-        result = new Node((t->type == t_mult? nt_mult : nt_div), t->text);
-        result->left = result1;
-        free(t);
-        t = m_lexer->next();
-        result->right = multExpr(t);
-        free(t);
-    } else 
-    {
-        result = result1;
-        if (t) m_lexer->pushBack(t);
+        Node *right = callWithNext(&Parser::negateExpr);
+        result = newNode(result, (op->type == t_mult ? nt_mult : nt_div), op->text, right);
+        free(op);
+        op = m_lexer->next();
     }
+    if (op) m_lexer->pushBack(op);
 
     return result;
 }
@@ -503,24 +535,18 @@ Node *Parser::addExpr(LexToken *token)
         return nullptr;
     }
 
-    Node *result = nullptr;
+    Node *result = multExpr(token);;
 
-    Node *result1 = multExpr(token);
-
-    LexToken *t = m_lexer->next();
-    if (t && (t->type == t_plus || t->type == t_minus))
+    LexToken *op = m_lexer->next();
+    while (op && (op->type == t_plus || op->type == t_dash))
     {
-        result = new Node((t->type == t_plus ? nt_add : nt_minus), t->text);
-        result->left = result1;
-        free(t);
-        t = m_lexer->next();
-        result->right = addExpr(t);
-        free(t);
-    } else 
-    {
-        result = result1;
-        if (t) m_lexer->pushBack(t);
+        Node *right = callWithNext(&Parser::multExpr);
+        result = newNode(result, (op->type == t_plus ? nt_add : nt_minus), op->text, right);
+        free(op);
+        op = m_lexer->next();
     }
+    if (op) m_lexer->pushBack(op);
+
 
     return result;
 }
@@ -723,19 +749,18 @@ Node *Parser::IntegerRange(LexToken *token)
 
     if (token->type == t_integer) 
     {
-        if (swallowNext(t_minus, true))  // have a range with Int -
+        if (matchNext(t_dash))  // have a range with Int -
         {
+            LexToken *t = m_lexer->next();
             result = new Node(nt_integerrange, "integer-range");
             result->left = new Node(nt_integer, token->text);
-
-            LexToken *t = m_lexer->next();
             if (t && t->type == t_integer) result->right = integer(t);
             free(t);
         } else // No dash
         {
             result = new Node(nt_integer, token->text);
         }
-    } else if (token->type == t_minus)
+    } else if (token->type == t_dash)
     {
         result = new Node(nt_integerrange, "integer-range");
         LexToken *t = m_lexer->next();

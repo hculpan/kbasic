@@ -813,8 +813,8 @@ void System::list(Node *node)
             string l = it->second->line;
             do 
             {
-                m_output->addText(l.substr(offset, 80));
-                offset += 80;
+                m_output->addText(l.substr(offset, m_output->lineSize()));
+                offset += m_output->lineSize();
             } while (offset < int(l.size()));
         }
     }

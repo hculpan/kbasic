@@ -18,6 +18,8 @@
 #include <iterator>
 #include <algorithm>
 
+MainWindow *mainWindow;
+
 #define MAP_START_X 405
 #define MAP_START_Y 110
 
@@ -47,18 +49,22 @@ bool MainWindow::handleEvent(SDL_Event *e) {
     return eventHandled;
 }
 
-MainWindow::MainWindow() : Window() {
-    SDL_Surface* text = TTF_RenderText_Solid(fontManager->getFont(fontManager->SOURCECODEPRO, 14), "g", {128, 128, 128, 255});
+MainWindow::MainWindow(int lineSize, int lineCount, int fontSize) : Window() {
+    this->m_fontSize = fontSize;
+    this->m_lineSize = lineSize;
+    this->m_lineCount = lineCount;
+
+    SDL_Surface* text = TTF_RenderText_Solid(fontManager->getFont(fontManager->SOURCECODEPRO, m_fontSize), "g", {128, 128, 128, 255});
     textWidth = text->w;
     textHeight = text->h;
     SDL_FreeSurface(text);
 
-    for (int i = 0; i < 25; i++) {
+    for (int i = 0; i < m_lineCount; i++) {
         textures[i] = nullptr;
     }
 
-    int screenWidth = textWidth * 80 + 10;
-    int screenHeight = textHeight * 25 + 10;
+    int screenWidth = textWidth * m_lineSize + 10;
+    int screenHeight = textHeight * m_lineCount + 10;
 
     //Create window
     window = SDL_CreateWindow(
@@ -153,8 +159,8 @@ void MainWindow::render(bool forceRedraw) {
 void MainWindow::createTextures() {
     freeTextures();
 
-    int offset = (consoleText.size() < 25 ? 0 : consoleText.size() - 25);
-    for (int i = 0; i < 25; i++) {
+    int offset = (int(consoleText.size()) < m_lineCount ? 0 : consoleText.size() - m_lineCount);
+    for (int i = 0; i < m_lineCount; i++) {
         if (i + offset >= int(consoleText.size())) {
             break;
         }
@@ -162,7 +168,7 @@ void MainWindow::createTextures() {
         if (consoleText[i + offset] != "") {
             textures[i] = renderText(
                 consoleText[i + offset], 
-                fontManager->getFont(FontManager::SOURCECODEPRO, 14),
+                fontManager->getFont(FontManager::SOURCECODEPRO, m_fontSize),
                 {255, 255, 255, 255},
                 getRenderer()
             );
@@ -171,7 +177,7 @@ void MainWindow::createTextures() {
 }
 
 void MainWindow::freeTextures() {
-    for (int i = 0; i < 25; i++) {
+    for (int i = 0; i < m_lineCount; i++) {
         if (textures[i]) {
             SDL_DestroyTexture(textures[i]);
             textures[i] = nullptr;
@@ -186,7 +192,7 @@ void MainWindow::renderOutput() {
         consoleTextDirty = false;
     }
 
-    for (int i = 0; i < 25; i++) {
+    for (int i = 0; i < m_lineCount; i++) {
         if (textures[i]) {
             renderTexture(textures[i], getRenderer(), 5, i * textHeight + 5);
         }
@@ -280,8 +286,16 @@ string MainWindow::translateKey(SDL_Keysym &keysym) const {
             [](unsigned char c){ return std::tolower(c); });
         return result;
     }
+}
 
+void MainWindow::addTextAt(int location, string s)
+{
+    UNUSED(location)
 
+    string t = s;
+    appendNext = false;
+    consoleText.push_back(t);
+    consoleTextDirty = true;
 }
 
 void MainWindow::clearText() {
