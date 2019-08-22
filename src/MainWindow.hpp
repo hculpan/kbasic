@@ -16,6 +16,9 @@
 #include <vector>
 #include <array>
 #include <unordered_map>
+#include <chrono>
+
+using namespace std::chrono;
 
 class MainWindow : public Window, Console {
 public:
@@ -31,10 +34,11 @@ public:
 
     // ConsoleOutput interface
     void addText(string s, bool append = false);
-    void addTextAt(int location, string s);
+    void putTextAt(int location, string s, bool append = false);
     void clearText();
     void terminate();
     inline int lineSize() { return m_lineSize; };
+    inline int lineCount() { return m_lineCount; }
     bool loop();
     float inputNumber(string prompt);
     string inputString(string prompt);
@@ -46,20 +50,32 @@ private:
     int m_lineSize;
     int m_lineCount;
 
+    int m_screenWidth;
+    int m_screenHeight;
+
+    int m_cursorPos = 0;
+    int m_cursorLine = 0;
+    
+    int m_inputStartPos = 0;
+    string m_inputBuffer = "";
+
     int textWidth = 0;
     int textHeight = 0;
 
     bool capsLock = false;
-    bool appendNext = false;
-
-    string inputBuffer;
 
     void renderOutput();
+    void renderCursor();
+    time_point<high_resolution_clock> m_lastCursorUpdate = high_resolution_clock::now();
+    bool m_cursorOn = true;
+
+    void newLine();
 
     bool consoleTextDirty = false;
 
-    vector<string> consoleText;
-    array<SDL_Texture *, SCREEN_HEIGHT> textures;
+    vector<string> m_text;
+    SDL_Texture *m_screenTexture = nullptr;
+    SDL_Texture *m_cursorTexture = nullptr;
     unordered_map<int, string> keyMap;
 
     void mapKeys();

@@ -9,6 +9,7 @@
 //Using SDL and standard IO
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 #include <CoreFoundation/CFBundle.h>
 #include <SDL2/SDL.h>
@@ -20,6 +21,7 @@
 double dpiModifier = 1.0;
 
 LoopStatus loopResult = l_running;
+ExecutionStatus executionStatus = ex_done;
 
 string resourcePath = "";
 
@@ -114,6 +116,12 @@ string findResourcePath() {
 	char path[PATH_MAX];
     CFStringGetCString( str, path, FILENAME_MAX, kCFStringEncodingASCII );
     return string(path) + "/Contents/Resources/";
+}
+
+void rtrim(string &s) {
+    s.erase(find_if(s.rbegin(), s.rend(), [](int ch) {
+        return !isspace(ch);
+    }).base(), s.end());
 }
 
 

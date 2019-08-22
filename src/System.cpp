@@ -113,6 +113,8 @@ void System::loadCodeLine(string line)
 
 void System::execute(Node *node)
 {
+    executionStatus = ex_executing;
+
     m_errors.clear();
 
     if (node->type == nt_load) load(node);
@@ -134,6 +136,8 @@ void System::execute(Node *node)
             m_output->addText(*it);
         }
     }
+
+    executionStatus = ex_done;
 }
 
 void System::statements(Node *node) 
@@ -332,11 +336,31 @@ void System::print(Node *node)
         m_output->addText("");
     } else
     {
+        int loc = -1;
+        if (node->right && node->right->type == nt_at)
+        {
+            Value v = expression(node->right->left);
+            if (!v.isInteger()) 
+            {
+                m_errors.push_back("Type mismatch");
+                return;
+            }
+            loc = v.integer();
+        } 
+
         Node *currNode = node->left;
         while (currNode)
         {
             bool append = (currNode->data == "append");
-            m_output->addText(expression(currNode->left).string(), append);
+            string s = expression(currNode->left).string();
+            if (loc >= 0)
+            {
+                m_output->putTextAt(loc, s, append);
+                loc += s.size();
+            } else 
+            {
+                m_output->addText(s, append);
+            }
             currNode = currNode->right;
         }
     }
@@ -832,7 +856,7 @@ void System::command(string line, Console *output) {
         {
             output->addText(it->msg);
         }
-    } else 
+    } else if (n)
     {
         execute(n);
     }

@@ -177,6 +177,10 @@ struct LexToken *Lexer::nextToken()
         {
             token = newToken(curr, currType, "^", TokenType::t_caret);
             break;
+        } else if (c == '@') 
+        {
+            token = newToken(curr, currType, "@", TokenType::t_at);
+            break;
         } else if (c == '-') 
         {
             token = newToken(curr, currType, "-", TokenType::t_dash);

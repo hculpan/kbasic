@@ -14,7 +14,7 @@ enum NodeType {
     nt_negate, nt_leftparen, nt_rightparen, nt_power, nt_identifier, nt_remark,
     nt_assign, nt_clear, nt_end, nt_semicolon, nt_printlist, nt_gosub, nt_lineNumber,
     nt_return, nt_if, nt_then, nt_trun, nt_for, nt_next, nt_step, nt_to, nt_function,
-    nt_input
+    nt_input, nt_at
 };
 
 struct Node {

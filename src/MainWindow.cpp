@@ -17,6 +17,7 @@
 #include <sstream>
 #include <iterator>
 #include <algorithm>
+#include <chrono>
 
 MainWindow *mainWindow;
 
@@ -54,25 +55,27 @@ MainWindow::MainWindow(int lineSize, int lineCount, int fontSize) : Window() {
     this->m_lineSize = lineSize;
     this->m_lineCount = lineCount;
 
+    m_text = vector<string>(m_lineCount);
+
     SDL_Surface* text = TTF_RenderText_Solid(fontManager->getFont(fontManager->SOURCECODEPRO, m_fontSize), "g", {128, 128, 128, 255});
     textWidth = text->w;
     textHeight = text->h;
     SDL_FreeSurface(text);
 
     for (int i = 0; i < m_lineCount; i++) {
-        textures[i] = nullptr;
+        m_text[i] = string(m_lineSize, ' ');
     }
 
-    int screenWidth = textWidth * m_lineSize + 10;
-    int screenHeight = textHeight * m_lineCount + 10;
+    m_screenWidth = textWidth * m_lineSize + 10;
+    m_screenHeight = textHeight * m_lineCount + 10;
 
     //Create window
     window = SDL_CreateWindow(
                 "KBasic",
                 SDL_WINDOWPOS_UNDEFINED,
                 SDL_WINDOWPOS_UNDEFINED,
-                screenWidth,
-                screenHeight,
+                m_screenWidth,
+                m_screenHeight,
                 SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
     if( window == nullptr ) {
         logSDLError("CreateWindow");
@@ -82,7 +85,7 @@ MainWindow::MainWindow(int lineSize, int lineCount, int fontSize) : Window() {
     int w, h;
     SDL_GL_GetDrawableSize(window, &w, &h);
 
-    dpiModifier = w / screenWidth;
+    dpiModifier = w / m_screenWidth;
     // dpiModifier = 1.0;
     // game->screenWidth = w;
     // game->screenHeight = h;
@@ -97,7 +100,6 @@ MainWindow::MainWindow(int lineSize, int lineCount, int fontSize) : Window() {
 
     addText("KBASIC v1.0");
     addText("Ready");
-    addText("_");
 }
 
 void MainWindow::mapKeys() {
@@ -137,6 +139,7 @@ void MainWindow::cleanup() {
     
     freeTextures();
 
+    if (m_cursorTexture) SDL_DestroyTexture(m_cursorTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -145,8 +148,9 @@ void MainWindow::cleanup() {
 void MainWindow::render(bool forceRedraw) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    
+
     renderOutput();
+    renderCursor();
     
     std::list<Window *>::iterator i;
     for(i = children.begin(); i != children.end(); ++i) {
@@ -159,30 +163,58 @@ void MainWindow::render(bool forceRedraw) {
 void MainWindow::createTextures() {
     freeTextures();
 
-    int offset = (int(consoleText.size()) < m_lineCount ? 0 : consoleText.size() - m_lineCount);
-    for (int i = 0; i < m_lineCount; i++) {
-        if (i + offset >= int(consoleText.size())) {
-            break;
-        }
+//    SDL_Renderer *target = getRenderer();
 
-        if (consoleText[i + offset] != "") {
-            textures[i] = renderText(
-                consoleText[i + offset], 
-                fontManager->getFont(FontManager::SOURCECODEPRO, m_fontSize),
-                {255, 255, 255, 255},
-                getRenderer()
-            );
-        }
+    m_screenTexture = SDL_CreateTexture(getRenderer(), 
+            SDL_PIXELFORMAT_RGBA8888, 
+            SDL_TEXTUREACCESS_TARGET,
+            m_screenWidth,
+            m_screenHeight);
+
+    SDL_SetRenderTarget(getRenderer(), m_screenTexture);
+    SDL_SetRenderDrawColor(getRenderer(), 0, 0, 0, 0);
+    SDL_RenderClear(getRenderer());
+
+    for (int i = 0; i < m_lineCount; i++) {
+        SDL_Texture *t = renderText(m_text[i],
+            fontManager->getFont(FontManager::SOURCECODEPRO, m_fontSize),
+            {255, 255, 255, 255},
+            getRenderer());
+        
+        renderTexture(t, getRenderer(), 5, i * textHeight + 5);
     }
+
+    SDL_SetRenderTarget(getRenderer(), NULL);
+    consoleTextDirty = false;
 }
 
 void MainWindow::freeTextures() {
-    for (int i = 0; i < m_lineCount; i++) {
-        if (textures[i]) {
-            SDL_DestroyTexture(textures[i]);
-            textures[i] = nullptr;
+    if (m_screenTexture) SDL_DestroyTexture(m_screenTexture);
+}
+
+void MainWindow::renderCursor() {
+    if (!m_cursorTexture)
+    {    
+        m_cursorTexture = renderText("_", fontManager->getFont(fontManager->SOURCECODEPRO, m_fontSize), {255, 255, 255, 255}, getRenderer());
+    }
+
+    auto finish = high_resolution_clock::now();
+    duration elapsed = duration_cast<milliseconds>(finish - m_lastCursorUpdate);
+    if (elapsed.count() > 500)
+    {
+        m_lastCursorUpdate = finish;
+        m_cursorOn = !m_cursorOn;
+    } 
+
+    
+    if (executionStatus != ex_executing || loopResult == l_input)
+    {
+        if (m_cursorOn)
+        {
+            renderTexture(m_cursorTexture, getRenderer(), m_cursorPos * textWidth + 5, m_cursorLine * textHeight + 5);    
         }
     }
+    
 }
 
 void MainWindow::renderOutput() {
@@ -192,68 +224,94 @@ void MainWindow::renderOutput() {
         consoleTextDirty = false;
     }
 
-    for (int i = 0; i < m_lineCount; i++) {
-        if (textures[i]) {
-            renderTexture(textures[i], getRenderer(), 5, i * textHeight + 5);
-        }
-    }
+    renderTexture(m_screenTexture, getRenderer(), 0, 0);
 };
 
 void MainWindow::addText(string s, bool append) {
-    string t = s;
-    if (appendNext)
+    m_text[m_cursorLine].replace(m_cursorPos, s.size(), s);
+    if (!append) 
     {
-        t = consoleText.back() + s;
-        consoleText.pop_back();
+        newLine();
+        m_cursorPos = 0;
+    } else 
+    {
+        m_cursorPos += s.size();
     }
-    appendNext = append;
-    consoleText.push_back(t);
+    consoleTextDirty = true;
+}
+
+void MainWindow::newLine()
+{
+    if (m_cursorLine >= m_lineCount - 1)
+    {
+        for (int i = 0; i < m_lineCount - 1; i++)
+        {
+            m_text[i] = m_text[i+1];
+        }
+        m_text[m_lineCount - 1] = string(m_lineSize, ' ');
+    } else 
+    {
+        m_cursorLine++;
+    }
     consoleTextDirty = true;
 }
 
 void MainWindow::addCharacter(string c) {
-    if (consoleText.size() == 0) return;
-
     if (c.size() == 1) {
-        string s = consoleText.back();
-        consoleText.pop_back();
-        if (s.size() > 0 && s.at(s.size() - 1) == '_') {
-            s = s.substr(0, s.size() - 1);
+        if (m_cursorPos >= m_lineSize)
+        {
+            m_cursorPos = 0;
         }
-        addText(s + c + '_');
-        if (loopResult == l_input) inputBuffer += c;
+
+        m_text[m_cursorLine].replace(m_cursorPos++, 1, c);
+        consoleTextDirty = true;
     } else if (c == "return" || c == "Return") {
-        string s = consoleText.back();
-        consoleText.pop_back();
-        if (s.size() > 1 && s.at(s.size() - 1) == '_') {
-            s = s.substr(0, s.size() - 1);
-        } else if (s.size() == 1) {
-            s = "";
-        }
-        addText(s);
         if (loopResult == l_input)
         {
             loopResult = l_endInput;
+            m_inputBuffer = m_text[m_cursorLine].substr(m_inputStartPos, m_lineSize);
+            rtrim(m_inputBuffer);
+            m_cursorPos=0;
+            newLine();
         } else 
         {
+            // Just in case there happens to be anything after the 
+            // cursor when you hit Return
+            string s = m_text[m_cursorLine];
+            m_cursorPos = 0;
+            newLine();
             core->command(s, this);
-            addText("_");
+            m_cursorPos = 0;
         }
     } else if (c == "capslock" || c == "CapsLock") {
         capsLock = !capsLock;
-        if (loopResult == l_input) loopResult = l_endInput;
     } else if (c == "backspace" || c == "Backspace") {
-        string s = consoleText.back();
-        consoleText.pop_back();
-        if (s.size() > 1 && s.at(s.size() - 1) == '_') {
-            s = s.substr(0, s.size() - 2);
-        } else if (s.size() == 1) {
-            s = "";
+        if ((m_cursorPos > 0 && loopResult != l_input) || m_cursorPos > m_inputStartPos)
+        {
+            m_text[m_cursorLine].replace(m_cursorPos - 1, 1, " ");
+            m_cursorPos--;
+            consoleTextDirty = true;
         }
-        addText(s + "_");
-        if (loopResult == l_input && inputBuffer.size() > 0) inputBuffer = inputBuffer.substr(0, inputBuffer.size() - 1);
+    } else if (c == "left")
+    {
+        if ((m_cursorPos > 0 && loopResult != l_input) || m_cursorPos > m_inputStartPos) m_cursorPos--;
+    } else if (c == "right")
+    {
+        if (m_cursorPos< m_lineSize - 1) m_cursorPos++;
+    } else if (c == "up")
+    {
+        if (m_cursorLine > 0 && loopResult != l_input) m_cursorLine--;
+    } else if (c == "down")
+    {
+        if (m_cursorLine < m_lineCount - 1 && loopResult != l_input) m_cursorLine++;
+    } else if (c == "delete")
+    {
+        m_text[m_cursorLine] = m_text[m_cursorLine].substr(0, m_cursorPos) + 
+                               m_text[m_cursorLine].substr(m_cursorPos +1, m_lineSize) +
+                               " ";
+        consoleTextDirty = true;
     } else {
-//        cout << "Unhandled key: " << c << endl;
+        cout << "Unhandled key: " << c << endl;
     }
 }
 
@@ -288,18 +346,24 @@ string MainWindow::translateKey(SDL_Keysym &keysym) const {
     }
 }
 
-void MainWindow::addTextAt(int location, string s)
+void MainWindow::putTextAt(int location, string s, bool append)
 {
-    UNUSED(location)
+    if (location >= m_lineSize * m_lineCount) return;
 
-    string t = s;
-    appendNext = false;
-    consoleText.push_back(t);
-    consoleTextDirty = true;
+    m_cursorLine = location / m_lineSize;
+    m_cursorPos = location % m_lineSize;
+
+    addText(s, append);
 }
 
 void MainWindow::clearText() {
-    consoleText.clear();
+    for (int i = 0; i < m_lineCount; i++)
+    {
+        m_text[i] = string(m_lineSize, ' ');
+    }
+
+    m_cursorPos = 0;
+    m_cursorLine = 0;
 }
 
 void MainWindow::terminate() {
@@ -311,10 +375,10 @@ void MainWindow::terminate() {
 float MainWindow::inputNumber(string prompt)
 {
     float result = 0.0;
-    addText(prompt + "? ");    
+    addText(prompt + "? ", true);    
 
     loopResult = l_input;
-    inputBuffer = "";
+    m_inputStartPos = m_cursorPos;
 
     bool quitting = false;
     while (!quitting){
@@ -322,21 +386,22 @@ float MainWindow::inputNumber(string prompt)
         if (loopResult == l_escape)
         {
             addText("Break");
-            inputBuffer = "";
             break;
-        } else if (loopResult == l_endInput && isFloat(inputBuffer)) 
+        } else if (loopResult == l_endInput)
         {
-            result = stof(inputBuffer);
-            break;
-        } else if (loopResult == l_endInput && inputBuffer == "")
-        {
-            break;
-        } else if (loopResult == l_endInput) 
-        {
-            addText("Type mismatch");
-            addText(prompt + "? ");
-            inputBuffer = "";
-            loopResult = l_input;
+            if (m_inputBuffer == "")
+            {
+                break;
+            } else if  (isFloat(m_inputBuffer)) 
+            {
+                result = stof(m_inputBuffer);
+                break;
+            } else 
+            {
+                addText("Type mismatch");
+                addText(prompt + "? ", true);
+                loopResult = l_input;
+            }
         }
     }
 
@@ -347,10 +412,10 @@ float MainWindow::inputNumber(string prompt)
 
 string MainWindow::inputString(string prompt)
 {
-    addText(prompt + "?");    
+    addText(prompt + "? ", true);    
 
     loopResult = l_input;
-    inputBuffer = "";
+    m_inputStartPos = m_cursorPos;
 
     bool quitting = false;
     while (!quitting){
@@ -358,6 +423,7 @@ string MainWindow::inputString(string prompt)
         if (loopResult == l_endInput) break;
         else if (loopResult == l_escape) 
         {
+            m_inputBuffer = "";
             addText("Break");
             break;
         }
@@ -365,5 +431,5 @@ string MainWindow::inputString(string prompt)
 
     if (loopResult == l_escape) loopResult = l_end;
     else loopResult = l_running;
-    return inputBuffer;
+    return m_inputBuffer;
 }

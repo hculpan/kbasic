@@ -109,6 +109,7 @@ Real           = {digit}+.{digit}+
                 | OPEN <Value> FOR <Access> AS '#' Integer
                 | POKE <Value List>
                 | PRINT <Print list>
+                | PRINT @ <Expression>, <Print List> 
                 | PRINT '#' Integer ',' <Print List>
                 | READ <ID List>           
                 | RETURN

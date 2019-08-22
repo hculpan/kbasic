@@ -345,6 +345,14 @@ Node *Parser::print(LexToken *token)
         m_lexer->pushBack(t);
     } else 
     {
+        if (t->type == t_at)
+        {
+            free(t);
+            result->right = newNode(callWithNext(&Parser::expression), nt_at, "@", nullptr);
+            swallowNext(t_comma);
+            t = m_lexer->next();
+        }
+
         result->left = printList(t);
         free(t);
     }
