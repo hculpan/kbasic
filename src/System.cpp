@@ -19,6 +19,14 @@ System::System() {
     srand(time(NULL));
 }
 
+System::~System()
+{
+    for (map<int, FileAccess*>::iterator it = m_openFiles.begin(); it != m_openFiles.end(); it++)
+    {
+        free(it->second);
+    }
+}
+
 bool System::checkNext(Lexer *l, TokenType type)
 {
     bool result = false;
@@ -131,6 +139,7 @@ void System::execute(Node *node)
 
     if (m_errors.size() > 0)
     {
+        if (currLine != NO_LINE_NUM) m_output->addText("Runtime error at line " + to_string(currLine));
         for (vector<string>::iterator it = m_errors.begin(); it != m_errors.end(); it++) 
         {
             m_output->addText(*it);
@@ -177,6 +186,14 @@ bool System::statement(Node *node)
     else if (node->left->type == nt_for) for_(node->left);
     else if (node->left->type == nt_next) next(node->left);
     else if (node->left->type == nt_input) input(node->left);
+    else if (node->left->type == nt_open) open(node->left);
+    else if (node->left->type == nt_close) close(node->left);
+    else if (node->left->type == nt_printfile) printfile(node->left);
+    else if (node->left->type == nt_inputfile) inputfile(node->left);
+    else if (node->left->type == nt_getkey) getkey(node->left);
+    else if (node->left->type == nt_data) data(node->left);
+    else if (node->left->type == nt_read) read(node->left);
+    else if (node->left->type == nt_restore) restore(node->left);
     else if (node->left->type == nt_goto) 
     {
         goto_(node->left);
@@ -211,19 +228,150 @@ void System::clear(Node *node)
     m_variables.clear();
 }
 
+void System::getkey(Node *node) 
+{
+    if (!node->left) return;
+
+    inAssign = true;
+    string s = m_output->getKey();
+    while (s == "" || s.at(0) == '\0')
+    {
+        mainLoop();
+        s = m_output->getKey();
+    }
+
+    setVariable(node->left, Value(s));
+    inAssign = false;
+}
+
 void System::assign(Node *node) 
 {
+    if (!node->left) return;
+
     inAssign = true;
     string id = node->text;
-    Value v = expression(node->left);
-    if ((v.isString() && (id.size() == 1 || id.substr(id.size() - 1, 1) != "$")) ||
-        (v.isNumeric() && (id.size() > 1 && id.substr(id.size() - 1, 1) == "$")))
+    Value v;
+    if (node->left->type == nt_inkey)
+    {
+        v = Value(m_output->getKey());
+    } else
+    {
+        v = expression(node->left);
+        if ((v.isString() && (id.size() == 1 || id.substr(id.size() - 1, 1) != "$")) ||
+            (v.isNumeric() && (id.size() > 1 && id.substr(id.size() - 1, 1) == "$")))
+        {
+            m_errors.push_back("Type mismatch");
+            return;
+        }
+    }
+    
+    setVariable(node, v);
+    inAssign = false;
+}
+
+void System::read(Node *node) 
+{
+    Node *currNode = node->left;
+    while (currNode)
+    {
+        if (m_dataStack.empty())
+        {
+            m_errors.push_back("Out of DATA");
+            return;
+        }
+
+        Value v = m_dataStack.front();
+        m_dataStack.pop();
+        setVariable(currNode->left, v);
+        currNode = currNode->right;
+    }
+}
+
+void System::data(Node *node) 
+{
+    UNUSED(node)
+
+    // This intentionally left empty; should do nothing if executed as part of a program
+    // DATA statements are handled as part of the pre-process     
+}
+
+void System::close(Node *node) 
+{
+    int number = stoi(node->left->text);
+
+    map<int, FileAccess *>::iterator it = m_openFiles.find(number);
+    if (it == m_openFiles.end())
+    {
+        m_errors.push_back("File number " + to_string(number) + " has not been opened.");
+        return;
+    }
+
+    if (it->second->accessMode == am_output) dynamic_cast<ofstream *>(it->second->stream)->close();
+    if (it->second->accessMode == am_input) dynamic_cast<ifstream *>(it->second->stream)->close();
+
+    free(it->second);
+    m_openFiles.erase(it);
+}
+
+void System::open(Node *node) 
+{
+    string file = node->left->text;
+    int number = stoi(node->right->right->text);
+
+    if (m_openFiles.find(number) != m_openFiles.end())
+    {
+        m_errors.push_back("File number " + to_string(number) + " already in use.");
+        return;
+    }
+
+    AccessMode accessMode = am_output;
+    if (node->right->left->type == nt_input) accessMode = am_input;
+
+    FileAccess *f = new FileAccess(file, number, accessMode);
+    if (!f->isOpen())
+    {
+        m_errors.push_back("Unable to open file \"" + file + "\"");
+        return;
+    }
+
+    m_openFiles[number] = f;
+}
+
+void System::inputfile(Node *node) 
+{
+    int filenum = stoi(node->right->text);
+    map<int, FileAccess *>::iterator it = m_openFiles.find(filenum);
+    if (it == m_openFiles.end())
+    {
+        m_errors.push_back("File number " + to_string(filenum) + " undefined");
+        return;
+    } else if (it->second->accessMode != am_input)
+    {
+        m_errors.push_back("Cannot read from a file that was opened for OUTPUT access");
+        return;
+    }
+
+    ifstream *input = dynamic_cast<ifstream *>(it->second->stream);
+    char c;
+    string s = "";
+    while ((c = input->get()))
+    {
+        if (c == ',' || c == ':' || c == ';' || c == '\n') 
+        {
+            break;
+        } else if (c != '\r') s += c;
+    }
+
+    string var = node->left->text;
+    Value result;
+    if (var.back() == '$') result = Value(s);
+    else if (is_number(s)) result = Value(stoi(s));
+    else 
     {
         m_errors.push_back("Type mismatch");
         return;
     }
-    setVariable(id, v);
-    inAssign = false;
+    setVariable(node->left, result);
 }
 
 void System::input(Node *node) 
@@ -233,7 +381,7 @@ void System::input(Node *node)
     Value result;
     if (var.back() == '$') result = Value(m_output->inputString(prompt));
     else result = Value(m_output->inputNumber(prompt));
-    setVariable(var, result);
+    setVariable(node->left, result);
 }
 
 void System::goto_(Node *node) 
@@ -279,6 +427,13 @@ void System::return_(Node *node)
     }
 }
 
+void System::restore(Node *node) 
+{
+    UNUSED(node)
+    
+    processData();
+}
+
 void System::next(Node *node) 
 {
     string var = node->left->text;
@@ -291,7 +446,7 @@ void System::next(Node *node)
 
     ForLocation fl = m_for[var];
     int value = getVariable(var).integer();
-    setVariable(var, value + 1);
+    setVariable(node->left, value + 1);
     if (fl.endIndex > value) branchTo(it->second.lineNum, it->second.node);
     else m_for.erase(var);
 }
@@ -309,10 +464,10 @@ void System::for_(Node *node)
 
     m_for[var] = ForLocation();
     m_for[var].lineNum = currLine;
-    m_for[var].node = node->left->right;
+    m_for[var].node = node->parent;
     m_for[var].startIndex = v1.integer();
     m_for[var].endIndex = v2.integer();
-    setVariable(var, v1.integer());
+    setVariable(node->left, v1.integer());
     m_forStack.push(var);
 }
 
@@ -327,6 +482,34 @@ void System::gosub(Node *node)
     {
         m_errors.push_back("Invalid value for GOSUB: \"" + v.string() + "\"");
     }
+}
+
+void System::printfile(Node *node) 
+{
+    int filenum = stoi(node->right->text);
+    map<int, FileAccess *>::iterator it = m_openFiles.find(filenum);
+    if (it == m_openFiles.end())
+    {
+        m_errors.push_back("File number " + to_string(filenum) + " undefined");
+        return;
+    } else if (it->second->accessMode != am_output)
+    {
+        m_errors.push_back("Cannot write to a file that was opened for INPUT access");
+        return;
+    }
+
+    Node *currNode = node->left;
+    string s = "";
+    bool append;
+    while (currNode)
+    {
+        append = (currNode->data == "append");
+        s += expression(currNode->left).string();
+        currNode = currNode->right;
+    }
+
+    *(dynamic_cast<ofstream *>(it->second->stream)) << s;
+    if (!append) *(dynamic_cast<ofstream *>(it->second->stream)) << endl;
 }
 
 void System::print(Node *node) 
@@ -387,7 +570,7 @@ Value System::boolExpression(Node *node)
 
     if (node->type == nt_real) return Value(stof(node->text) != 0.0);
 
-    if (node->type == nt_identifier) return getVariable(node->text).boolean();
+    if (node->type == nt_identifier) return getVariable(node).boolean();
 
     if (node->type == nt_and || node->type == nt_or)
     {
@@ -428,7 +611,7 @@ Value System::add(Node *node)
     if (node->type == nt_integer) return Value(stoi(node->text));
     if (node->type == nt_real) return Value(stof(node->text));
     if (node->type == nt_string) return Value(node->text);
-    if (node->type == nt_identifier) return getVariable(node->text);
+    if (node->type == nt_identifier) return getVariable(node);
     if (node->type == nt_function) return function(node);
 
     if (node->type == nt_add)
@@ -501,8 +684,33 @@ Value System::getVariable(string id)
     return m_variables[id];
 }
 
-void System::setVariable(string id, Value v)
+Value System::getVariable(Node *node)
 {
+    string id = node->text;
+
+    Node *currNode = node->right;
+    while (currNode && currNode->type == nt_arrayid)
+    {
+        Value v = expression(currNode->left);
+        id = id + "__" + v.string();
+        currNode = currNode->right;
+    }
+
+    return getVariable(id);
+}
+
+void System::setVariable(Node *node, Value v)
+{
+    string id = node->text;
+    
+    Node *currNode = node->right;
+    while (currNode && currNode->type == nt_arrayid)
+    {
+        Value v = expression(currNode->left);
+        id = id + "__" + v.string();
+        currNode = currNode->right;
+    }
+
     transform(id.begin(), id.end(), id.begin(),
     [](unsigned char c){ return tolower(c); });
 
@@ -511,6 +719,8 @@ void System::setVariable(string id, Value v)
 
 Value System::expression(Node *node)
 {
+    if (!node) return Value();
+
     if (node->type == nt_string) return Value(node->text);
     else if (node->type == nt_integer) return Value(stoi(node->text));
     else if (node->type == nt_real) return Value(stof(node->text));
@@ -553,6 +763,21 @@ Value System::strFunc(const Value &v)
     return Value(v.string());
 }
 
+Value System::chrFunc(const Value &v)
+{
+    if (v.isInteger() && v.integer() > -1 && v.integer() < 256)
+        return Value("" + string(1, static_cast<char>(v.integer())));
+    else return Value("");
+}
+
+Value System::valFunc(const Value &v)
+{
+    if (v.isNumeric()) return v;
+    if (isInteger(v.string())) return Value(stoi(v.string()));
+    if (isFloat(v.string())) return Value(stof(v.string()));
+    else return Value(0);
+}
+
 Value System::rnd(const Value &v)
 {
     if (!v.isInteger())
@@ -583,6 +808,8 @@ Value System::function(Node *node)
     if (ltext == "int") return intFunc(param);
     if (ltext == "rnd") return rnd(param);
     if (ltext == "str$") return strFunc(param);
+    if (ltext == "val") return valFunc(param);
+    if (ltext == "chr$") return chrFunc(param);
     else return Value();
 }
 
@@ -622,16 +849,56 @@ void System::trun(Node *node)
     m_output->addText("Execution duration: " + to_string(duration));
 }
 
+void System::handleData(Node *node)
+{
+    Node *currNode = node->left;
+    while (currNode)
+    {
+        Value v;
+        if (currNode->type == nt_integer) v = Value(stoi(currNode->text));
+        if (currNode->type == nt_real) v = Value(stof(currNode->text));
+        if (currNode->type == nt_string) v = Value(currNode->text);
+        m_dataStack.push(v);
+        currNode = currNode->right;
+    }
+}
+
+void System::processData()
+{
+    queue<Value> empty;
+    swap(m_dataStack, empty);
+    
+    for (map<int, ProgramLine *>::iterator it = m_program.begin(); it != m_program.end(); it++)
+    {
+        Node *currNode = it->second->node->left;
+        while (currNode)
+        {
+            if (currNode->left && currNode->left->type == nt_data) handleData(currNode->left);
+            currNode = currNode ->right;
+        }
+    }
+}
+
+void System::preprocess(Node *node)
+{
+    UNUSED(node)
+
+    processData();    
+}
+
 void System::run(Node *node) 
 {
     UNUSED(node)
 
     if (m_program.size() == 0) return;
 
+    preprocess(node);
+
     map<int, ProgramLine *>::iterator it = m_program.begin();
     nextLineNo = NO_LINE_NUM;
+    currLine = NO_LINE_NUM;
     m_errors.clear();
-    loopResult = l_running;  // clear out any prior ESC
+    loopResult = l_runningProgram;  // clear out any prior ESC
     Parser *p = new Parser();
     while (it != m_program.end())
     {
@@ -643,11 +910,13 @@ void System::run(Node *node)
         Node *line = it->second->node;
         if (!line || !line->left) 
         {
-            m_output->addText("System error!");
+            currLine = NO_LINE_NUM;
+            m_errors.push_back("Unknown system error!");
             break;
         } else if (line->type != nt_lineNumber)
         {
-            m_output->addText("Parse error: Invalid line number \"" + line->text + "\"");
+            currLine = NO_LINE_NUM;
+            m_errors.push_back("Parse error: Invalid line number \"" + line->text + "\"");
             break;
         }
         currLine = it->second->lineNum;
@@ -656,27 +925,18 @@ void System::run(Node *node)
         if (p->hasErrors())
         {
             vector<ParseError> errors = p->errors();
-            m_output->addText("Parse error at line " + to_string(it->first));
             for (vector<ParseError>::iterator it = errors.begin(); it != errors.end(); it++ )
             {
-                m_output->addText(it->msg);
+                m_errors.push_back("Parse error: " + it->msg);
             }
 
-            return;
+            break;
         }
 
         // execute statements
         statements(stmts);
 
-        if (m_errors.size() > 0)
-        {
-            m_output->addText("Runtime error at line " + to_string(it->first));
-            for (vector<string>::iterator it = m_errors.begin(); it != m_errors.end(); it++) 
-            {
-                m_output->addText(*it);
-            }
-            break;
-        }
+        if (m_errors.size() > 0) break;
 
         if (nextLineNo == NO_LINE_NUM) it++;
         else 
@@ -684,13 +944,13 @@ void System::run(Node *node)
             it = m_program.find(nextLineNo);
             if (it == m_program.end())
             {
-                m_output->addText("Invalid line number in GOTO/GOSUB");
-                return;
+                m_errors.push_back("Invalid line number in GOTO/GOSUB");
+                break;
             }
             nextLineNo = NO_LINE_NUM;
         }
 
-        if (m_output->loop() != l_running) 
+        if (m_output->loop() != l_runningProgram) 
         {
             if (loopResult == l_escape) m_output->addText("Break");
             loopResult = l_running;
@@ -699,6 +959,7 @@ void System::run(Node *node)
     }
 
     free(p);
+    loopResult = l_running;
 }
 
 void System::bye(Node *node) 

@@ -27,7 +27,6 @@ endif()
 
 find_file(SDL2_INCLUDE_DIR NAME SDL.h HINTS SDL2)
 #find_path(SDL2_TTF_DIR SDL_ttf.h PATHS /Library/Frameworks/SDL2_image.framework/Headers)
-#find_path(SDL2_IMAGE_DIR NAMES SDL_image.h)
 
 if (APPLE)
     set(SDL2_TTF_DIR /Library/Frameworks/SDL2_ttf.framework/Headers)

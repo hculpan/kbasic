@@ -127,13 +127,57 @@ Node *Parser::remark(LexToken *token)
     return result;
 }
 
+Node *Parser::arrayValue(LexToken *token)
+{
+    Node *result = newNode(expression(token), nt_arrayid, "array", nullptr);
+
+    Node *currNode = result;
+    while (m_lexer->peek()->type == t_comma)
+    {
+        swallowNext(t_comma);
+        LexToken *t = m_lexer->next();
+        currNode->right = newNode(expression(t), nt_arrayid, "array", nullptr);
+        free(t);
+        currNode = currNode->right;
+    }
+
+    swallowNext(t_rightparen);
+
+    return result;
+}
+
 Node *Parser::idStmt(LexToken *token)
 {
     Node *result = new Node(nt_assign, token->text);
-    swallowNext(t_equals);
-    LexToken *t = m_lexer->next();
-    result->left = expression(t);
-    free(t);
+
+    if (m_lexer->peek()->type == t_leftparen)
+    {
+        swallowNext(t_leftparen);
+        LexToken *t = m_lexer->next();
+        result->right = arrayValue(t);
+        free(t);
+    }
+
+    if (m_lexer->peek()->type == t_equals)
+    {
+        swallowNext(t_equals);
+
+        if (m_lexer->peek()->type == t_inkey)
+        {
+            LexToken *t = m_lexer->next();
+            result->left = inkey(t);
+            free(t);
+        } else
+        {
+            LexToken *t = m_lexer->next();
+            result->left = expression(t);
+            free(t);
+        }
+    } else
+    {
+        m_errors.push_back(ParseError("Expecting EQUALS; found \"" + m_lexer->peek()->text + "\""));
+    }
+
     return result;
 }
 
@@ -149,10 +193,16 @@ Node *Parser::statement(LexToken *token)
     else if (token->type == t_end) result->left = end(token);
     else if (token->type == t_if) result->left = if_(token);
     else if (token->type == t_input) result->left = input(token);
+    else if (token->type == t_open) result->left = open(token);
+    else if (token->type == t_close) result->left = close(token);
+    else if (token->type == t_getkey) result->left = getkey(token);
+    else if (token->type == t_data) result->left = data(token);
+    else if (token->type == t_read) result->left = read(token);
+    else if (token->type == t_restore) result->left = restore(token);
     else if (token->type == t_for)
     {
         result->left = for_(token);
-        if (result->left) result->left->left->right = result;
+        if (result->left) result->left->parent = result;
     } 
     else if (token->type == t_next) result->left = next(token);
     else if (token->type == t_gosub)
@@ -161,7 +211,7 @@ Node *Parser::statement(LexToken *token)
         if (result->left) result->left->right = result; 
     } 
     else if (token->type == t_return) result->left = return_(token);
-    else if (token->type == t_identifier && m_lexer->peek()->type == t_equals) result->left = idStmt(token);
+    else if (token->type == t_identifier) result->left = idStmt(token);
     else 
     {
         free(result);
@@ -172,14 +222,183 @@ Node *Parser::statement(LexToken *token)
     return result;
 }
 
+Node *Parser::restore(LexToken *token) 
+{
+    return new Node(nt_restore, token->text);
+}
+
 Node *Parser::end(LexToken *token) 
 {
     return new Node(nt_end, token->text);
 }
 
+Node *Parser::idList(LexToken *token) 
+{
+    if (token && token->type != t_identifier)
+    {
+        m_errors.push_back(ParseError("Expected IDENTIFIER; found \"" + token->text + "\""));
+        return nullptr;
+    } else if (!token)
+    {
+        m_errors.push_back(ParseError("Expected IDENTIFIER; found nothing"));
+        return nullptr;
+    }
+
+    Node *result = newNode(new Node(nt_identifier, token->text), nt_idlist, "idlist", nullptr);
+    if (m_lexer->peek()->type == t_leftparen)
+    {
+        swallowNext(t_leftparen);
+        LexToken *t = m_lexer->next();
+        result->left->right = arrayValue(t);
+        free(t);
+    }
+    
+    if (result && m_lexer->peek()->type == t_comma)
+    {
+        swallowNext(t_comma);
+        LexToken *t = m_lexer->next();
+        result->right = idList(t);
+        free(t);
+    }
+
+    return result;
+
+}
+
+Node *Parser::read(LexToken *token) 
+{
+    return newNode(callWithNext(&Parser::idList), nt_read, token->text, nullptr);
+}
+
+Node *Parser::data(LexToken *token) 
+{
+    return newNode(callWithNext(&Parser::constantList), nt_data, token->text, nullptr);
+}
+
+bool isConstant(LexToken *token)
+{
+    return (token && (token->type == t_string || token->type == t_integer || token->type == t_real));
+}
+
+Node *Parser::constantList(LexToken *token) 
+{
+    if (token && !isConstant(token))
+    {
+        m_errors.push_back(ParseError("Expected CONSTANT; found \"" + token->text + "\""));
+        return nullptr;
+    } else if (!token)
+    {
+        m_errors.push_back(ParseError("Expected CONSTANT; found nothing"));
+        return nullptr;
+    }
+
+    Node *result = nullptr;
+    if (token->type == t_string) result = new Node(nt_string, token->text);
+    else if (token->type == t_integer)  result = new Node(nt_string, token->text);
+    else  result = new Node(nt_string, token->text);
+    
+    if (result && m_lexer->peek()->type == t_comma)
+    {
+        swallowNext(t_comma);
+        LexToken *t = m_lexer->next();
+        result->right = constantList(t);
+        free(t);
+    }
+
+    return result;
+}
+
 Node *Parser::clear(LexToken *token) 
 {
     return new Node(nt_clear, token->text);
+}
+
+Node *Parser::getkey(LexToken *token)
+{
+    if (m_lexer->peek()->type != t_identifier)
+    {
+        m_errors.push_back(ParseError("Expecting IDENTIFIER; found \"" + m_lexer->peek()->text + "\""));
+        return nullptr;
+    }
+
+    LexToken *t = m_lexer->next();
+    Node *result = newNode(identifier(t), nt_getkey, token->text, nullptr);
+    free(t);
+    return result;
+}
+
+Node *Parser::inkey(LexToken *token)
+{
+    return new Node(nt_inkey, token->text);
+}
+
+Node *Parser::close(LexToken *token)
+{
+    Node *result = nullptr;
+    if (swallowNext(t_hash))
+    {
+        result = newNode(callWithNext(&Parser::integer), nt_close, token->text, nullptr);
+    }
+    return result;
+}
+
+Node *Parser::open(LexToken *token)
+{
+    Node *result = new Node(nt_open, token->text);
+
+    result->left = callWithNext(&Parser::valueExpr);
+    if (!result->left)
+    {
+        m_errors.push_back(ParseError("Expected ID or STRING; found EMPTY"));
+        return result;
+    }
+    if (result->left->type != nt_identifier && result->left->type != nt_string)
+    {
+        m_errors.push_back(ParseError("Expected ID or STRING; found \"" + result->left->text + "\""));
+        return result;
+    }
+
+    result->right = callWithNext(&Parser::for_as);
+
+    return result;
+}
+
+Node *Parser::for_as(LexToken *token)
+{
+    if (!token)
+    {
+        m_errors.push_back(ParseError("Expecting FOR; found empty"));
+        return nullptr;
+    }
+    if (token->type != t_for)
+    {
+        m_errors.push_back(ParseError("Expecting FOR; found \"" + token ->text + "\""));
+        return nullptr;
+    }
+
+    Node *result = new Node(nt_for, token->text);
+    LexToken *t = m_lexer->next();
+    if (!t)
+    {
+        m_errors.push_back(ParseError("Expecting INPUT or OUTPUT; found empty"));
+    } else if (t->type != t_input && t->type != t_output)
+    {
+        m_errors.push_back(ParseError("Expecting INPUT or OUTPUT; found \"" + t->text + "\""));
+    } else if (t->type == t_input)
+    {
+        result->left = new Node(nt_input, t->text);
+    } else 
+    {
+        result->left = new Node(nt_output, t->text);
+    }
+    free(t);
+
+    swallowNext(t_as);
+    swallowNext(t_hash);
+
+    result->right = callWithNext(&Parser::integer);
+
+    return result;
 }
 
 Node *Parser::input(LexToken *token)
@@ -190,6 +409,13 @@ Node *Parser::input(LexToken *token)
     {
         m_errors.push_back(ParseError("Expecting string or ID for INPUT"));
         return result;
+    } else if (t->type == t_hash)
+    {
+        free(t);
+        result->type = nt_inputfile;
+        result->right = callWithNext(&Parser::integer);
+        if (!swallowNext(t_comma)) return result;
+        t = m_lexer->next();
     } else if (t->type == t_string)
     {
         result->right = constant(t);
@@ -205,6 +431,14 @@ Node *Parser::input(LexToken *token)
     }
 
     result->left = new Node(nt_identifier, t->text);
+    if (m_lexer->peek()->type == t_leftparen)
+    {
+        swallowNext(t_leftparen);
+        LexToken *t = m_lexer->next();
+        result->left->right = expression(t);
+        free(t);
+        swallowNext(t_rightparen);
+    }
 
     return result;
 }
@@ -343,6 +577,18 @@ Node *Parser::print(LexToken *token)
     } else if (t->type == t_colon)
     {
         m_lexer->pushBack(t);
+    } else if (t->type == t_hash)
+    {
+        result->type = nt_printfile;
+        free(t);
+        Node *num = callWithNext(&Parser::integer);
+        result->right = num;
+        if (swallowNext(t_comma))
+        {
+            t = m_lexer->next();
+            result->left = printList(t);
+            free(t);
+        }
     } else 
     {
         if (t->type == t_at)
@@ -506,6 +752,20 @@ Node *Parser::powerExpr(LexToken *token)
     return result;
 }
 
+Node *Parser::identifier(LexToken *token)
+{
+    Node *result = new Node(nt_identifier, token->text);
+    if (m_lexer->peek()->type == t_leftparen)
+    {
+        swallowNext(t_leftparen);
+        LexToken *t = m_lexer->next();
+        result->right = arrayValue(t);
+        free(t);
+    }
+
+    return result;
+}
+
 Node *Parser::valueExpr(LexToken *token)
 {
     Node *result = nullptr;
@@ -518,7 +778,7 @@ Node *Parser::valueExpr(LexToken *token)
         swallowNext(t_rightparen);
     } else if (token->type == t_identifier)
     {
-        result = new Node(nt_identifier, token->text);
+        result = identifier(token);
     } else if (token->type == t_function)
     {
         result = funcExpr(token);

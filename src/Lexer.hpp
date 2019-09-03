@@ -10,7 +10,7 @@ enum TokenType {
     t_notequals, t_greater, t_less, t_greaterequal, t_lessequal, t_step, t_comma,
     t_data, t_for, t_to, t_next, t_read, t_let, t_print, t_rem, t_goto, t_not,
     t_clear, t_end, t_semicolon, t_gosub, t_return, t_if, t_then, t_trun, t_function,
-    t_input, t_at
+    t_input, t_at, t_open, t_as, t_output, t_hash, t_close, t_inkey, t_getkey, t_restore
 };
 
  extern vector<string> functions;

@@ -13,7 +13,7 @@ using namespace std;
 
 extern double dpiModifier;
 
-enum LoopStatus { l_running, l_quitting, l_escape, l_end, l_input, l_endInput };
+enum LoopStatus { l_running, l_runningProgram, l_quitting, l_escape, l_end, l_input, l_endInput };
 
 enum ExecutionStatus { ex_executing, ex_done };
 

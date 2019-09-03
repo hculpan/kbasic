@@ -42,6 +42,7 @@ public:
     bool loop();
     float inputNumber(string prompt);
     string inputString(string prompt);
+    string getKey();
 
 private:
     SDL_Window *window;
@@ -80,6 +81,7 @@ private:
 
     void mapKeys();
     string translateKey(SDL_Keysym &sym) const;
+    string translateKey(SDL_Scancode scancode, bool shifted) const;
 
     void freeTextures();
     void createTextures();

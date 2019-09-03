@@ -16,6 +16,7 @@ public:
     virtual string inputString(string prompt) = 0;
     virtual int lineSize() = 0;
     virtual int lineCount() = 0;
+    virtual string getKey() = 0;
 };
 
 #endif

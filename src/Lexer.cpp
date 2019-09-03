@@ -3,7 +3,7 @@
 #include <cctype>
 #include <algorithm>
 
-vector<string> functions{"tab", "int", "rnd", "str$"};
+vector<string> functions{"tab", "int", "rnd", "str$", "val", "chr$"};
 
 Lexer::Lexer(string line) 
 {
@@ -72,6 +72,15 @@ struct LexToken *Lexer::keywords(struct LexToken *token)
         else if (ltext == "if") token->type = t_if;
         else if (ltext == "then") token->type = t_then;
         else if (ltext == "input") token->type = t_input;
+        else if (ltext == "open") token->type = t_open;
+        else if (ltext == "as") token->type = t_as;
+        else if (ltext == "output") token->type = t_output;
+        else if (ltext == "close") token->type = t_close;
+        else if (ltext == "inkey$") token->type = t_inkey;
+        else if (ltext == "getkey") token->type = t_getkey;
+        else if (ltext == "data") token->type = t_data;
+        else if (ltext == "read") token->type = t_read;
+        else if (ltext == "restore") token->type = t_restore;
         else if (isFunction(ltext)) token->type = t_function;
     } 
 
@@ -240,6 +249,10 @@ struct LexToken *Lexer::nextToken()
         } else if (c == ',')
         {
             token = newToken(curr, currType, ",", TokenType::t_comma);
+            break;
+        } else if (c == '#')
+        {
+            token = newToken(curr, currType, "#", TokenType::t_hash);
             break;
         } else if (c == '.') 
         {

@@ -11,7 +11,8 @@ Value::Value()
 
 Value::Value(std::string s)
 {
-    svalue = s;
+    if (s.size() > 0 && s.at(0) == '\0') svalue = "";
+    else svalue = s;
     ivalue = 0;
     rvalue = 0.0;
     bvalue = false;

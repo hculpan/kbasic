@@ -10,6 +10,9 @@
 #include <vector>
 #include <climits>
 #include <stack>
+#include <queue>
+#include <iostream>
+#include <fstream>
 
 struct LineLocation {
     int lineNum;
@@ -59,9 +62,45 @@ struct ProgramLine {
     }
 };
 
+enum AccessMode { am_input, am_output };
+
+struct FileAccess {
+    int number;
+    ios *stream = nullptr;
+    AccessMode accessMode;
+    string filename;
+    bool m_open = false;
+
+    inline bool isOpen() const { return m_open; }
+
+    FileAccess(string name, int number, AccessMode accessMode)
+    {
+        this->filename = name;
+        this->number = number;
+        this->accessMode = accessMode;
+        if (accessMode == am_input) 
+        {
+            this->stream = new ifstream(name);
+            m_open = dynamic_cast<ifstream *>(stream)->is_open();
+        }
+        if (accessMode == am_output) 
+        {
+            this->stream = new ofstream(name);
+            m_open = dynamic_cast<ofstream *>(stream)->is_open();
+        }
+    }
+
+    ~FileAccess()
+    {
+        if (stream && accessMode == am_input) dynamic_cast<ifstream *>(stream)->close();
+        if (stream && accessMode == am_output) dynamic_cast<ofstream *>(stream)->close();
+    }
+};
+
 class System {
 public:
     System();
+    ~System();
 
     void command(string line, Console *output);
 
@@ -72,9 +111,13 @@ private:
 
     map<string, Value> m_variables;
 
+    map<int, FileAccess *> m_openFiles;
+
     stack<LineLocation> m_gosub;
     map<string, ForLocation> m_for;
     stack<string> m_forStack;
+
+    queue<Value> m_dataStack;
 
     vector<string> m_errors;
 
@@ -97,8 +140,11 @@ private:
 
     void loadCodeLine(string line);
 
+    Value getVariable(Node *node);
     Value getVariable(string id);
-    void setVariable(string id, Value v);
+    void setVariable(Node *node, Value v);
+
+    void processData();
 
     void execute(Node *node);
     void load(Node *node);
@@ -112,6 +158,7 @@ private:
     void statements(Node *node);
     bool statement(Node *node);
     void print(Node *node);
+    void printfile(Node *node);
     void line(Node *node);
     void run(Node *node);
     void trun(Node *node);
@@ -125,8 +172,17 @@ private:
     void for_(Node *node);
     void next(Node *node);
     void input(Node *node);
+    void inputfile(Node *node);
+    void open(Node *node);
+    void close(Node *node);
+    void getkey(Node *node);
+    void data(Node *node);
+    void read(Node *node);
+    void restore(Node *node);
 
     void branchTo(int lineNum, Node *node);
+    void preprocess(Node *node);
+    void handleData(Node *node);
 
     Value expression(Node *node);
     Value boolExpression(Node *node);
@@ -137,6 +193,8 @@ private:
     Value intFunc(const Value &v);
     Value strFunc(const Value &v);
     Value rnd(const Value &v);
+    Value valFunc(const Value &v);
+    Value chrFunc(const Value &v);
 
     void lines();
     

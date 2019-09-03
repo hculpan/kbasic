@@ -14,7 +14,8 @@ enum NodeType {
     nt_negate, nt_leftparen, nt_rightparen, nt_power, nt_identifier, nt_remark,
     nt_assign, nt_clear, nt_end, nt_semicolon, nt_printlist, nt_gosub, nt_lineNumber,
     nt_return, nt_if, nt_then, nt_trun, nt_for, nt_next, nt_step, nt_to, nt_function,
-    nt_input, nt_at
+    nt_input, nt_at, nt_open, nt_as, nt_output, nt_close, nt_printfile, nt_inputfile,
+    nt_inkey, nt_getkey, nt_data, nt_read, nt_arrayid, nt_idlist, nt_restore
 };
 
 struct Node {
@@ -22,6 +23,8 @@ struct Node {
     NodeType type;
 
     string data = "";
+
+    Node *parent = nullptr;
 
     Node *left = nullptr;
     Node *right = nullptr;
@@ -114,9 +117,11 @@ class Parser {
         Node *negateExpr(LexToken *token);
         Node *powerExpr(LexToken *token);
         Node *valueExpr(LexToken *token);
+        Node *identifier(LexToken *token);
         Node *constant(LexToken *token);
         Node *remark(LexToken *token);
         Node *idStmt(LexToken *token);
+        Node *arrayValue(LexToken *token);
         Node *clear(LexToken *token);
         Node *end(LexToken *token);
         Node *gosub(LexToken *token);
@@ -126,6 +131,16 @@ class Parser {
         Node *for_(LexToken *token);
         Node *next(LexToken *token);
         Node *input(LexToken *token);
+        Node *open(LexToken *token);
+        Node *for_as(LexToken *token);
+        Node *close(LexToken *token);
+        Node *inkey(LexToken *token);
+        Node *getkey(LexToken *token);
+        Node *data(LexToken *token);
+        Node *constantList(LexToken *token);
+        Node *read(LexToken *token);
+        Node *idList(LexToken *token);
+        Node *restore(LexToken *token);
 };
 
 #endif

@@ -1,5 +1,4 @@
-10 a=10
-20 if a=10 then 100
-30 print "I guess a isn't 10"
-99 end
-100 print "Yes, a=10"
+10 read a,b,c                                                   
+20 print "a=";a;", b=";b;", c=";c                               
+99 end                                                          
+100 data 1,2,3                                                  

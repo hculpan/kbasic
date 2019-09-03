@@ -257,6 +257,11 @@ void MainWindow::newLine()
 }
 
 void MainWindow::addCharacter(string c) {
+    if (c == "capslock" || c == "CapsLock") {
+        capsLock = !capsLock;
+        return;
+    } else if (loopResult != l_running && loopResult != l_input) return;
+
     if (c.size() == 1) {
         if (m_cursorPos >= m_lineSize)
         {
@@ -283,8 +288,6 @@ void MainWindow::addCharacter(string c) {
             core->command(s, this);
             m_cursorPos = 0;
         }
-    } else if (c == "capslock" || c == "CapsLock") {
-        capsLock = !capsLock;
     } else if (c == "backspace" || c == "Backspace") {
         if ((m_cursorPos > 0 && loopResult != l_input) || m_cursorPos > m_inputStartPos)
         {
@@ -316,30 +319,33 @@ void MainWindow::addCharacter(string c) {
 }
 
 string MainWindow::translateKey(SDL_Keysym &keysym) const {
-    if (keysym.scancode == SDL_SCANCODE_SPACE) {
+    return translateKey(keysym.scancode, (keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT));
+}
+
+string MainWindow::translateKey(SDL_Scancode scancode, bool shifted) const {
+    if (scancode == SDL_SCANCODE_SPACE) {
         return " ";
-    } else if (keysym.scancode >= SDL_SCANCODE_A && keysym.scancode <= SDL_SCANCODE_Z) {
-        if ((!capsLock && (keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT))
-                    || (capsLock && !(keysym.mod & KMOD_LSHIFT) && !(keysym.mod & KMOD_RSHIFT))) {
-            auto search = keyMap.find(keysym.scancode);
+    } else if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z) {
+        if ((!capsLock && shifted) || (capsLock && !shifted)) {
+            auto search = keyMap.find(scancode);
             if (search != keyMap.end()) {
                 return search->second;
             }
-            return SDL_GetScancodeName(keysym.scancode);
+            return SDL_GetScancodeName(scancode);
         } else {
-            string result(SDL_GetScancodeName(keysym.scancode));
+            string result(SDL_GetScancodeName(scancode));
             transform(result.begin(), result.end(), result.begin(),
                 [](unsigned char c){ return std::tolower(c); });
             return result;
         }
-    } else if (keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT) {
-        auto search = keyMap.find(keysym.scancode);
+    } else if (shifted) {
+        auto search = keyMap.find(scancode);
         if (search != keyMap.end()) {
             return search->second;
         }
-        return SDL_GetScancodeName(keysym.scancode);
+        return SDL_GetScancodeName(scancode);
     } else {
-        string result(SDL_GetScancodeName(keysym.scancode));
+        string result(SDL_GetScancodeName(scancode));
         transform(result.begin(), result.end(), result.begin(),
             [](unsigned char c){ return std::tolower(c); });
         return result;
@@ -370,6 +376,22 @@ void MainWindow::terminate() {
     SDL_Event sdlevent;
     sdlevent.type = SDL_QUIT;
     SDL_PushEvent(&sdlevent);
+}
+
+string MainWindow::getKey()
+{
+    int numKeys;
+    const Uint8 *state = SDL_GetKeyboardState(&numKeys);
+    bool shifted = (state[SDL_SCANCODE_LSHIFT] || state[SDL_SCANCODE_RSHIFT]);
+
+    for (int i = 0; i < numKeys; i++)
+    {
+        if (i == SDL_SCANCODE_LSHIFT || i == SDL_SCANCODE_RSHIFT) continue;
+
+        if (state[i]) return translateKey(static_cast<SDL_Scancode>(i), shifted);
+    }
+
+    return "";
 }
 
 float MainWindow::inputNumber(string prompt)
