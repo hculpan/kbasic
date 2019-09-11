@@ -15,7 +15,8 @@ enum NodeType {
     nt_assign, nt_clear, nt_end, nt_semicolon, nt_printlist, nt_gosub, nt_lineNumber,
     nt_return, nt_if, nt_then, nt_trun, nt_for, nt_next, nt_step, nt_to, nt_function,
     nt_input, nt_at, nt_open, nt_as, nt_output, nt_close, nt_printfile, nt_inputfile,
-    nt_inkey, nt_getkey, nt_data, nt_read, nt_arrayid, nt_idlist, nt_restore
+    nt_inkey, nt_getkey, nt_data, nt_read, nt_arrayid, nt_idlist, nt_restore, nt_dim,
+    nt_else, nt_using
 };
 
 struct Node {
@@ -128,6 +129,7 @@ class Parser {
         Node *return_(LexToken *token);
         Node *if_(LexToken *token);
         Node *then(LexToken *token);
+        Node *else_(LexToken *token);
         Node *for_(LexToken *token);
         Node *next(LexToken *token);
         Node *input(LexToken *token);
@@ -141,6 +143,7 @@ class Parser {
         Node *read(LexToken *token);
         Node *idList(LexToken *token);
         Node *restore(LexToken *token);
+        Node *dim(LexToken *token);
 };
 
 #endif

@@ -33,8 +33,8 @@ public:
     int fontSize() { return m_fontSize; }
 
     // ConsoleOutput interface
-    void addText(string s, bool append = false);
-    void putTextAt(int location, string s, bool append = false);
+    void addText(string s, PrintAppendMode appendMode = pam_none);
+    void putTextAt(int location, string s, PrintAppendMode appendMode = pam_none);
     void clearText();
     void terminate();
     inline int lineSize() { return m_lineSize; };
@@ -43,6 +43,9 @@ public:
     float inputNumber(string prompt);
     string inputString(string prompt);
     string getKey();
+    CursorPos getCursorPos();
+    void setCursorPos(const CursorPos &pos);
+
 
 private:
     SDL_Window *window;

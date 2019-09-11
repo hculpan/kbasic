@@ -18,6 +18,7 @@
 #include <iterator>
 #include <algorithm>
 #include <chrono>
+#include <cwctype>
 
 MainWindow *mainWindow;
 
@@ -227,12 +228,19 @@ void MainWindow::renderOutput() {
     renderTexture(m_screenTexture, getRenderer(), 0, 0);
 };
 
-void MainWindow::addText(string s, bool append) {
+void MainWindow::addText(string s, PrintAppendMode appendMode) {
     m_text[m_cursorLine].replace(m_cursorPos, s.size(), s);
-    if (!append) 
+    if (appendMode == pam_none) 
     {
         newLine();
         m_cursorPos = 0;
+    } else if (appendMode == pam_tab) {
+        m_cursorPos = (int(m_cursorPos/10) + 1) * 10;
+        if (m_cursorPos > m_lineSize) 
+        {
+            newLine();
+            m_cursorPos = 0;
+        }
     } else 
     {
         m_cursorPos += s.size();
@@ -295,6 +303,23 @@ void MainWindow::addCharacter(string c) {
             m_cursorPos--;
             consoleTextDirty = true;
         }
+    } else if (c == "home")
+    {
+        if (loopResult != l_input) m_cursorPos = 0;
+        else if (loopResult == l_input) m_cursorPos = m_inputStartPos;
+    } else if (c == "end")
+    {
+        int i = m_lineSize - 1;
+        for (; i >= 0; i--) if (!iswspace(m_text[m_cursorLine].at(i))) break;
+        m_cursorPos = i + 1;
+        if (loopResult == l_input && i < m_inputStartPos)
+        {
+            m_cursorPos = m_inputStartPos;
+        } else if (loopResult != l_input && m_cursorPos >= m_lineSize - 1)
+        {
+            newLine();
+            m_cursorPos = 0;
+        } 
     } else if (c == "left")
     {
         if ((m_cursorPos > 0 && loopResult != l_input) || m_cursorPos > m_inputStartPos) m_cursorPos--;
@@ -307,6 +332,7 @@ void MainWindow::addCharacter(string c) {
     } else if (c == "down")
     {
         if (m_cursorLine < m_lineCount - 1 && loopResult != l_input) m_cursorLine++;
+        else if (loopResult != l_input) newLine();
     } else if (c == "delete")
     {
         m_text[m_cursorLine] = m_text[m_cursorLine].substr(0, m_cursorPos) + 
@@ -352,14 +378,14 @@ string MainWindow::translateKey(SDL_Scancode scancode, bool shifted) const {
     }
 }
 
-void MainWindow::putTextAt(int location, string s, bool append)
+void MainWindow::putTextAt(int location, string s, PrintAppendMode pmode)
 {
     if (location >= m_lineSize * m_lineCount) return;
 
     m_cursorLine = location / m_lineSize;
     m_cursorPos = location % m_lineSize;
 
-    addText(s, append);
+    addText(s, pmode);
 }
 
 void MainWindow::clearText() {
@@ -370,6 +396,7 @@ void MainWindow::clearText() {
 
     m_cursorPos = 0;
     m_cursorLine = 0;
+    consoleTextDirty = true;
 }
 
 void MainWindow::terminate() {
@@ -397,8 +424,9 @@ string MainWindow::getKey()
 float MainWindow::inputNumber(string prompt)
 {
     float result = 0.0;
-    addText(prompt + "? ", true);    
+    addText(prompt + "? ", pam_append);    
 
+    LoopStatus oldLoopResult = loopResult;
     loopResult = l_input;
     m_inputStartPos = m_cursorPos;
 
@@ -421,21 +449,22 @@ float MainWindow::inputNumber(string prompt)
             } else 
             {
                 addText("Type mismatch");
-                addText(prompt + "? ", true);
+                addText(prompt + "? ", pam_append);
                 loopResult = l_input;
             }
         }
     }
 
     if (loopResult == l_escape) loopResult = l_end;
-    else loopResult = l_running;
+    else loopResult = oldLoopResult;
     return result;
 }
 
 string MainWindow::inputString(string prompt)
 {
-    addText(prompt + "? ", true);    
+    addText(prompt + "? ", pam_append);    
 
+    LoopStatus oldLoopResult = loopResult;
     loopResult = l_input;
     m_inputStartPos = m_cursorPos;
 
@@ -452,6 +481,17 @@ string MainWindow::inputString(string prompt)
     }
 
     if (loopResult == l_escape) loopResult = l_end;
-    else loopResult = l_running;
+    else loopResult = oldLoopResult;
     return m_inputBuffer;
+}
+
+CursorPos MainWindow::getCursorPos()
+{
+    return CursorPos(m_cursorPos, m_cursorLine);
+}
+
+void MainWindow::setCursorPos(const CursorPos &pos)
+{
+    m_cursorPos = pos.col;
+    m_cursorLine = pos.row;
 }

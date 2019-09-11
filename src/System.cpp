@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <ctime>
 #include <cstdlib>
+#include <iomanip>
 
 #include <dirent.h>
 
@@ -152,7 +153,10 @@ void System::execute(Node *node)
 void System::statements(Node *node) 
 {
     currNode = node;
-    while (currNode)
+    continueStatements = true;
+    ifState = ifs_none;
+    triggerElse = false;
+    while (currNode && loopResult != l_end)
     {
         if (statement(currNode))
         {
@@ -170,12 +174,22 @@ void System::statements(Node *node)
             break;
         }
     }
-    continueStatements = true;
 }
 
 bool System::statement(Node *node) 
 {
     continueStatements = true;
+
+    //if (node->left->type != nt_else) triggerElse = false;
+    if (ifState == ifs_yes && node->left->type == nt_else)
+    {
+        ifState = ifs_none;
+        continueStatements = false;
+        return false;
+    } else if (ifState == ifs_no && node->left->type != nt_else && triggerElse)
+    {
+        return true;
+    }
 
     if      (node->left->type == nt_print) print(node->left);
     else if (node->left->type == nt_scnclr) scnclr(node->left);
@@ -183,6 +197,7 @@ bool System::statement(Node *node)
     else if (node->left->type == nt_clear) clear(node->left);
     else if (node->left->type == nt_return) return_(node->left);
     else if (node->left->type == nt_if) if_(node->left);
+    else if (node->left->type == nt_else) else_(node->left);
     else if (node->left->type == nt_for) for_(node->left);
     else if (node->left->type == nt_next) next(node->left);
     else if (node->left->type == nt_input) input(node->left);
@@ -210,15 +225,31 @@ bool System::statement(Node *node)
         return false;
     }
 
+    if (loopResult == l_end || loopResult == l_escape) 
+    {
+        m_output->addText("Break");
+        continueStatements = false;
+    }
+
     return continueStatements;
+}
+
+void System::else_(Node *node)
+{
+    if (triggerElse)
+    {
+        ifState = ifs_none;
+        triggerElse = false;
+        continueStatements = statement(node->left);
+    }
 }
 
 void System::if_(Node *node)
 {
     Value v = expression(node->left);
-    if (v.boolean()) {
-        continueStatements = statement(node->right);
-    }
+    ifState = (v.boolean() ? ifs_yes : ifs_no );
+    triggerElse = !v.boolean();
+    continueStatements = statement(node->right);
 }
 
 void System::clear(Node *node) 
@@ -233,12 +264,18 @@ void System::getkey(Node *node)
     if (!node->left) return;
 
     inAssign = true;
-    string s = m_output->getKey();
-    while (s == "" || s.at(0) == '\0')
+
+    waitForClearKeyboard();
+
+    string s = "";
+    int index = 0;
+    while (index < 50 && s == "")
     {
-        mainLoop();
+        singleLoop();
         s = m_output->getKey();
+        index++;
     }
+    if (s == "return") s = string(1, '\r');
 
     setVariable(node->left, Value(s));
     inAssign = false;
@@ -253,6 +290,7 @@ void System::assign(Node *node)
     Value v;
     if (node->left->type == nt_inkey)
     {
+        waitForClearKeyboard();
         v = Value(m_output->getKey());
     } else
     {
@@ -436,9 +474,18 @@ void System::restore(Node *node)
 
 void System::next(Node *node) 
 {
-    string var = node->left->text;
+    string var = "";
+    if (!node->left)
+    {
+        while (var == "" && !m_forStack.empty())
+        {
+            string temp = m_forStack.back();
+            map<string, ForLocation>::iterator it = m_for.find(temp);
+            if (it != m_for.end()) var = it->first;
+        }
+    } else var = node->left->text;
     map<string, ForLocation>::iterator it = m_for.find(var);
-    if (it == m_for.end())
+    if (var == "" || it == m_for.end())
     {
         m_errors.push_back("NEXT without matching FOR");
         return;
@@ -446,9 +493,20 @@ void System::next(Node *node)
 
     ForLocation fl = m_for[var];
     int value = getVariable(var).integer();
-    setVariable(node->left, value + 1);
+    setVariable(var, value + 1);
     if (fl.endIndex > value) branchTo(it->second.lineNum, it->second.node);
-    else m_for.erase(var);
+    else 
+    {
+        for (vector<string>::iterator it = m_forStack.begin(); it != m_forStack.end(); it++)
+        {
+            if (*it == var) 
+            {
+                m_forStack.erase(it);
+                break;
+            }
+        }
+        m_for.erase(var);
+    }
 }
 
 void System::for_(Node *node) 
@@ -468,7 +526,7 @@ void System::for_(Node *node)
     m_for[var].startIndex = v1.integer();
     m_for[var].endIndex = v2.integer();
     setVariable(node->left, v1.integer());
-    m_forStack.push(var);
+    m_forStack.push_back(var);
 }
 
 void System::gosub(Node *node) 
@@ -512,6 +570,61 @@ void System::printfile(Node *node)
     if (!append) *(dynamic_cast<ofstream *>(it->second->stream)) << endl;
 }
 
+string System::formatString(string s, string format)
+{
+    class comma_numpunct : public std::numpunct<char>
+    {
+        public:
+            comma_numpunct(bool grouping)
+            {
+                this->m_grouping = grouping;
+            }
+
+        protected:
+            bool m_grouping = false;
+
+            virtual char do_thousands_sep() const
+            {
+                return ',';
+            }
+
+            virtual std::string do_grouping() const
+            {
+                return (m_grouping ? "\03" : "");
+            }
+    };
+
+    if (format == "") return s;
+    if (!isInteger(s) && !isFloat(s)) return s;
+
+    float num = stof(s, NULL);
+
+    int dotLoc = format.find('.');
+    int commaLoc = format.find(",");
+    bool dollarSign = format.at(0) == '$';
+
+    string fa = (dotLoc > -1 ? format.substr(0, dotLoc) : format);
+    string fb = (dotLoc > -1 ? format.substr(dotLoc + 1, INT_MAX) : "");
+    
+    size_t firstSize = std::count(fa.begin(), fa.end(), '#');
+    size_t lastSize = std::count(fb.begin(), fb.end(), '#');
+
+    stringstream ss;
+    locale comma_locale(locale(), new comma_numpunct((commaLoc < dotLoc) || (commaLoc > -1 && dotLoc == -1)));
+
+    // tell cout to use our new locale.
+    ss.imbue(comma_locale);
+
+    ss << setprecision(lastSize) << fixed << num;
+
+    string result = ss.str();
+    if (dollarSign) result = "$" + result;
+    dotLoc = result.find('.');
+    if (dotLoc > -1 && firstSize > static_cast<size_t>(dotLoc)) result = string(firstSize - dotLoc, ' ') + result;
+
+    return result;
+}
+
 void System::print(Node *node) 
 {
     if (!node->left)
@@ -520,29 +633,41 @@ void System::print(Node *node)
     } else
     {
         int loc = -1;
+        string format = "";
         if (node->right && node->right->type == nt_at)
         {
             Value v = expression(node->right->left);
             if (!v.isInteger()) 
             {
-                m_errors.push_back("Type mismatch");
+                m_errors.push_back("Type mismatch for PRINT @");
                 return;
             }
             loc = v.integer();
-        } 
+        } else if (node->right && node->right->type == nt_using)
+        {
+            Value v = expression(node->right->left);
+            if (!v.isString()) 
+            {
+                m_errors.push_back("Type mismatch for PRINT USING");
+                return;
+            }
+            format = v.string();
+        }
 
         Node *currNode = node->left;
         while (currNode)
         {
-            bool append = (currNode->data == "append");
-            string s = expression(currNode->left).string();
+            PrintAppendMode pmode = pam_none;
+            if (currNode->data == "append") pmode = pam_append;
+            else if (currNode->data == "append-tab") pmode = pam_tab;
+            string s = formatString(expression(currNode->left).string(), format);
             if (loc >= 0)
             {
-                m_output->putTextAt(loc, s, append);
+                m_output->putTextAt(loc, s, pmode);
                 loc += s.size();
             } else 
             {
-                m_output->addText(s, append);
+                m_output->addText(s, pmode);
             }
             currNode = currNode->right;
         }
@@ -701,8 +826,9 @@ Value System::getVariable(Node *node)
 
 void System::setVariable(Node *node, Value v)
 {
+    if (node->text == "") return;
+
     string id = node->text;
-    
     Node *currNode = node->right;
     while (currNode && currNode->type == nt_arrayid)
     {
@@ -710,7 +836,12 @@ void System::setVariable(Node *node, Value v)
         id = id + "__" + v.string();
         currNode = currNode->right;
     }
+    setVariable(id, v);
+}
 
+void System::setVariable(string id, Value v)
+{
+    cout << "Setting " << id << " to " << v.string() << endl;
     transform(id.begin(), id.end(), id.begin(),
     [](unsigned char c){ return tolower(c); });
 
@@ -736,7 +867,10 @@ Value System::tab(const Value &v)
         m_errors.push_back("Type mismatch in call to TAB()");
         return Value();
     }
-    return string(v.integer(), ' ');
+    CursorPos cpos = m_output->getCursorPos();
+    cpos.col = v.integer();
+    m_output->setCursorPos(cpos);
+    return string("");
 }
 
 Value System::intFunc(const Value &v)
@@ -879,9 +1013,21 @@ void System::processData()
     }
 }
 
+void System::waitForClearKeyboard()
+{
+    string s = m_output->getKey();
+    while (s != "")
+    {
+        singleLoop();
+        s = m_output->getKey();
+    }
+}
+
 void System::preprocess(Node *node)
 {
     UNUSED(node)
+
+    waitForClearKeyboard();
 
     processData();    
 }
@@ -897,6 +1043,8 @@ void System::run(Node *node)
     map<int, ProgramLine *>::iterator it = m_program.begin();
     nextLineNo = NO_LINE_NUM;
     currLine = NO_LINE_NUM;
+    m_forStack.clear();
+    m_for.clear();
     m_errors.clear();
     loopResult = l_runningProgram;  // clear out any prior ESC
     Parser *p = new Parser();
@@ -933,8 +1081,10 @@ void System::run(Node *node)
             break;
         }
 
+        singleLoop();
+
         // execute statements
-        statements(stmts);
+        if (loopResult == l_runningProgram) statements(stmts);
 
         if (m_errors.size() > 0) break;
 
@@ -952,7 +1102,7 @@ void System::run(Node *node)
 
         if (m_output->loop() != l_runningProgram) 
         {
-            if (loopResult == l_escape) m_output->addText("Break");
+//            if (loopResult == l_escape) m_output->addText("Break");
             loopResult = l_running;
             break;
         }

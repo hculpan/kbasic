@@ -32,12 +32,23 @@ string findResourcePath();
 LoopStatus mainLoop()
 {
     SDL_Event e;
-    while (SDL_PollEvent(&e)){
+    while (SDL_PollEvent(&e))
+    {
         mainWindow->handleEvent(&e);
         if (loopResult == l_quitting) {
             break;
         }
     }
+    
+    mainWindow->render(false);
+
+    return loopResult;
+}
+
+LoopStatus singleLoop()
+{
+    SDL_Event e;
+    if (SDL_PollEvent(&e)) mainWindow->handleEvent(&e);
     
     mainWindow->render(false);
 

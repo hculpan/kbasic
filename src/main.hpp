@@ -25,6 +25,7 @@ extern ExecutionStatus executionStatus;
 #define SCREEN_HEIGHT  25
 
 extern LoopStatus mainLoop();
+extern LoopStatus singleLoop();
 
 extern bool isFloat( string myString );
 

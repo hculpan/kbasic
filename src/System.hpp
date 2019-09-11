@@ -106,7 +106,6 @@ public:
 
 private:
     const int NO_LINE_NUM = INT_MIN;
-
     map<int, ProgramLine *> m_program;
 
     map<string, Value> m_variables;
@@ -115,7 +114,7 @@ private:
 
     stack<LineLocation> m_gosub;
     map<string, ForLocation> m_for;
-    stack<string> m_forStack;
+    vector<string> m_forStack;
 
     queue<Value> m_dataStack;
 
@@ -123,11 +122,16 @@ private:
 
     Console *m_output;
 
+    enum IfState { ifs_none, ifs_yes, ifs_no };
+
+    IfState ifState = ifs_none;
+
     int nextLineNo = NO_LINE_NUM;
     int currLine = NO_LINE_NUM;
     bool inAssign = false;
     bool continueStatements = true;
     Node *currNode = nullptr;
+    bool triggerElse = false;
 
     bool is_number(const std::string& s);
     bool checkNext(Lexer *l, TokenType type);
@@ -136,6 +140,8 @@ private:
     bool isBoolNode(NodeType type);
     bool isComparisonNode(NodeType type);
 
+    void waitForClearKeyboard();
+
     int getLineNo(string line);
 
     void loadCodeLine(string line);
@@ -143,8 +149,11 @@ private:
     Value getVariable(Node *node);
     Value getVariable(string id);
     void setVariable(Node *node, Value v);
+    void setVariable(string id, Value v);
 
     void processData();
+
+    string formatString(string s, string format);
 
     void execute(Node *node);
     void load(Node *node);
@@ -170,6 +179,7 @@ private:
     void clear(Node *node);
     void if_(Node *node);
     void for_(Node *node);
+    void else_(Node *node);
     void next(Node *node);
     void input(Node *node);
     void inputfile(Node *node);

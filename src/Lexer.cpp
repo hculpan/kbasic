@@ -54,6 +54,7 @@ struct LexToken *Lexer::keywords(struct LexToken *token)
         else if (ltext == "read") token->type = t_read;
         else if (ltext == "let") token->type = t_let;
         else if (ltext == "print") token->type = t_print;
+        else if (ltext == "using") token->type = t_using;
         else if (ltext == "rem") token->type = t_rem;
         else if (ltext == "scnclr") token->type = t_scnclr;
         else if (ltext == "cls") token->type = t_scnclr;
@@ -71,6 +72,7 @@ struct LexToken *Lexer::keywords(struct LexToken *token)
         else if (ltext == "return") token->type = t_return;
         else if (ltext == "if") token->type = t_if;
         else if (ltext == "then") token->type = t_then;
+        else if (ltext == "else") token->type = t_else;
         else if (ltext == "input") token->type = t_input;
         else if (ltext == "open") token->type = t_open;
         else if (ltext == "as") token->type = t_as;
@@ -81,6 +83,7 @@ struct LexToken *Lexer::keywords(struct LexToken *token)
         else if (ltext == "data") token->type = t_data;
         else if (ltext == "read") token->type = t_read;
         else if (ltext == "restore") token->type = t_restore;
+        else if (ltext == "dim") token->type = t_dim;
         else if (isFunction(ltext)) token->type = t_function;
     } 
 

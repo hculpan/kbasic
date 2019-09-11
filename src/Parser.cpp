@@ -181,6 +181,11 @@ Node *Parser::idStmt(LexToken *token)
     return result;
 }
 
+Node *Parser::dim(LexToken *token)
+{
+    return newNode(callWithNext(&Parser::idList), nt_dim, token->text, nullptr);
+}
+
 Node *Parser::statement(LexToken *token)
 {
     Node *result = new Node(nt_statement, "statement");
@@ -192,6 +197,7 @@ Node *Parser::statement(LexToken *token)
     else if (token->type == t_scnclr) result->left = scnclr(token);
     else if (token->type == t_end) result->left = end(token);
     else if (token->type == t_if) result->left = if_(token);
+    else if (token->type == t_else) result->left = else_(token);
     else if (token->type == t_input) result->left = input(token);
     else if (token->type == t_open) result->left = open(token);
     else if (token->type == t_close) result->left = close(token);
@@ -199,6 +205,7 @@ Node *Parser::statement(LexToken *token)
     else if (token->type == t_data) result->left = data(token);
     else if (token->type == t_read) result->left = read(token);
     else if (token->type == t_restore) result->left = restore(token);
+    else if (token->type == t_dim) result->left = dim(token);
     else if (token->type == t_for)
     {
         result->left = for_(token);
@@ -435,9 +442,8 @@ Node *Parser::input(LexToken *token)
     {
         swallowNext(t_leftparen);
         LexToken *t = m_lexer->next();
-        result->left->right = expression(t);
+        result->left->right = arrayValue(t);
         free(t);
-        swallowNext(t_rightparen);
     }
 
     return result;
@@ -446,14 +452,14 @@ Node *Parser::input(LexToken *token)
 Node *Parser::next(LexToken *token)
 {
     Node *result = new Node(nt_next, token->text);
-    LexToken *t = m_lexer->next();
-    if (!t || t->type != t_identifier)
+
+    if (m_lexer->peek()->type == t_identifier)
     {
-        m_errors.push_back(ParseError("Identifier expect for NEXT"));
-        if (t) m_lexer->pushBack(t);
-        return nullptr;
-    } else result->left = new Node(nt_identifier, t->text);
-    free(t);
+        LexToken *t = m_lexer->next();
+        result->left = new Node(nt_identifier, t->text);
+        free(t);
+    }
+
     return result;
 }
 
@@ -528,6 +534,11 @@ Node *Parser::gosub(LexToken *token)
     return result;
 }
 
+Node *Parser::else_(LexToken *token)
+{
+    return newNode(callWithNext(&Parser::statement), nt_else, token->text, nullptr);
+}
+
 Node *Parser::if_(LexToken *token)
 {
     Node *result = new Node(nt_if, token->text);
@@ -597,6 +608,12 @@ Node *Parser::print(LexToken *token)
             result->right = newNode(callWithNext(&Parser::expression), nt_at, "@", nullptr);
             swallowNext(t_comma);
             t = m_lexer->next();
+        } else if (t->type == t_using)
+        {
+            result->right = newNode(callWithNext(&Parser::expression), nt_using, t->text, nullptr);
+            free(t);
+            swallowNext(t_semicolon);
+            t = m_lexer->next();
         }
 
         result->left = printList(t);
@@ -609,18 +626,37 @@ Node *Parser::print(LexToken *token)
 Node *Parser::printList(LexToken *token)
 {
     Node *result = new Node(nt_printlist, "print-list");
-    result->left = expression(token);
 
-    if (m_lexer->peek()->type == t_semicolon)
+    if (token->type == t_comma || token->type == t_semicolon)
     {
-        result->data = "append";
-        swallowNext(t_semicolon);
-        LexToken *t = m_lexer->next();
-        if (t) result->right = printList(t);
-        free(t);
-    } else if (!m_lexer->eol() && m_lexer->peek()->type != t_colon)
+        result->left = new Node(nt_string, "");
+        result->data = (token->type == t_comma ? "append-tab" : "append");
+        result->right = callWithNext(&Parser::printList);
+    } else 
     {
-        m_errors.push_back(ParseError("Unexpected token \"" + m_lexer->peek()->text + "\""));
+        result->left = expression(token);
+
+        if (m_lexer->peek()->type == t_semicolon)
+        {
+            result->data = "append";
+            swallowNext(t_semicolon);
+            if (!m_lexer->eol() && m_lexer->peek()->type != t_colon)
+            {
+                LexToken *t = m_lexer->next();
+                if (t) result->right = printList(t);
+                free(t);
+            } 
+        } else if (m_lexer->peek()->type == t_comma)
+        {
+            result->data = "append-tab";
+            swallowNext(t_comma);
+            if (!m_lexer->eol() && m_lexer->peek()->type != t_colon)
+            {
+                LexToken *t = m_lexer->next();
+                if (t) result->right = printList(t);
+                free(t);
+            } 
+        } 
     }
 
     return result;

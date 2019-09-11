@@ -94,7 +94,8 @@ Real           = {digit}+.{digit}+
 <Statement>   ::= CLOSE '#' Integer
                 | CLEAR
                 | DATA <Constant List> 
-                | DIM ID '(' <Integer List> ')'
+                | DIM <ID List>
+                | ELSE <Statement>
                 | END          
                 | FOR ID '=' <Expression> TO <Expression>     
                 | FOR ID '=' <Expression> TO <Expression> STEP Integer      
@@ -102,7 +103,7 @@ Real           = {digit}+.{digit}+
                 | GOSUB <Expression> 
                 | IF <Expression> THEN <Statement>         
                 | INPUT <ID List>       
-                | INPUT <string>;<ID List>
+                | INPUT <String>;<ID List>
                 | INPUT '#' Integer ',' <ID List>       
                 | LET Id '=' <Expression> 
                 | NEXT <ID List>               
@@ -111,6 +112,7 @@ Real           = {digit}+.{digit}+
                 | PRINT <Print list>
                 | PRINT @ <Expression>, <Print List> 
                 | PRINT '#' Integer ',' <Print List>
+                | PRINT USING <Expression>;<
                 | READ <ID List>           
                 | RETURN
                 | RESTORE
@@ -141,6 +143,8 @@ Real           = {digit}+.{digit}+
 
 <Print List>      ::= <Expression> ';' <Print List>
                     | <Expression> 
+                    | ',' <Print List>
+                    | ';' <Print List>
                     |  
 
 <Expression>  ::= <And Exp> OR <Expression> 
